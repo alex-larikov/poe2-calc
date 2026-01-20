@@ -3,88 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PoE 2: Fate of the Vaal Optimizer</title>
+    <title>PoE 2 Optimizer</title>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #0c0c0c; color: #d1d1d1; padding: 15px; display: flex; flex-direction: column; align-items: center; }
-        .card { background: #161616; padding: 25px; border-radius: 12px; width: 100%; max-width: 380px; border: 1px solid #2a2a2a; box-shadow: 0 8px 32px rgba(0,0,0,0.6); margin-bottom: 20px; }
-        h2 { color: #e1ad5f; text-align: center; margin: 0 0 20px 0; font-size: 1.1rem; text-transform: uppercase; }
-        .btn-sync { width: 100%; padding: 14px; background: #e1ad5f; border: none; border-radius: 6px; color: #000; font-weight: 800; cursor: pointer; margin-bottom: 15px; text-transform: uppercase; }
+        body { font-family: -apple-system, sans-serif; background: #0c0c0c; color: #d1d1d1; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .card { background: #161616; padding: 25px; border-radius: 12px; width: 100%; max-width: 380px; border: 1px solid #2a2a2a; box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+        h2 { color: #e1ad5f; text-align: center; margin: 0 0 20px 0; font-size: 1.2rem; text-transform: uppercase; }
+        .btn-sync { width: 100%; padding: 14px; background: #e1ad5f; border: none; border-radius: 6px; color: #000; font-weight: 800; cursor: pointer; margin-bottom: 15px; }
         label { display: block; font-size: 0.7rem; color: #888; margin-bottom: 5px; font-weight: bold; }
         input { width: 100%; padding: 12px; background: #222; border: 1px solid #333; color: #fff; border-radius: 6px; margin-bottom: 15px; box-sizing: border-box; font-size: 1rem; }
-        .result { padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; display: none; border: 1px solid transparent; }
+        .result { padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; display: none; border: 1px solid transparent; line-height: 1.4; }
         .better { background: rgba(45, 106, 79, 0.2); border-color: #2d6a4f; color: #95d5b2; }
         .worse { background: rgba(106, 45, 45, 0.2); border-color: #6a2d2d; color: #d59595; }
-        
-        /* Debug Console Styles */
-        .debug-panel { width: 100%; max-width: 380px; background: #000; border: 1px solid #444; border-radius: 8px; padding: 15px; font-family: monospace; font-size: 0.7rem; color: #0f0; }
-        .debug-url { color: #555; word-break: break-all; margin-bottom: 10px; display: block; }
-        .debug-log { max-height: 200px; overflow-y: auto; white-space: pre-wrap; color: #aaa; }
+        .debug-panel { width: 100%; max-width: 380px; margin-top: 20px; background: #000; padding: 10px; border-radius: 8px; font-size: 0.65rem; color: #666; font-family: monospace; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>Vaal Exchange Calc</h2>
+    <h2>Vaal Optimizer</h2>
     <button class="btn-sync" onclick="fetchRates()">Sync Market Rates</button>
     
-    <label>1 Divine = ? Exalts</label>
+    <label id="rateLabel">1 Divine = ? Exalts</label>
     <input type="number" id="divExRate" step="0.01" oninput="calculate()">
 
     <hr style="border:0; border-top: 1px solid #2a2a2a; margin: 20px 0;">
 
     <label>Item Price (Divines)</label>
-    <input type="number" id="pDiv" oninput="calculate()">
+    <input type="number" id="pDiv" placeholder="0" oninput="calculate()">
 
     <label>Item Price (Exalts)</label>
-    <input type="number" id="pEx" oninput="calculate()">
+    <input type="number" id="pEx" placeholder="0" oninput="calculate()">
 
     <div id="result" class="result"></div>
 </div>
 
-<div class="debug-panel">
-    <strong>DEBUG CONSOLE</strong>
-    <span id="debug-url" class="debug-url">URL: Waiting...</span>
-    <div id="debug-log" class="debug-log">Log: App started. Click Sync.</div>
-</div>
+<div class="debug-panel" id="debug">Log: Waiting for sync...</div>
 
 <script>
 async function fetchRates() {
-    const log = document.getElementById('debug-log');
-    const urlDisplay = document.getElementById('debug-url');
-    log.innerText = "Attempting fetch...";
+    const debug = document.getElementById('debug');
+    debug.innerText = "Syncing with PoE 2 Exchange API...";
 
     const league = "Fate+of+the+Vaal";
     const proxy = "https://corsproxy.io/?";
     const target = `https://poe.ninja/poe2/api/economy/exchange/current/overview?league=${league}&type=Currency`;
-    
-    urlDisplay.innerText = "URL: " + target;
 
     try {
         const response = await fetch(proxy + encodeURIComponent(target));
         const data = await response.json();
         
-        log.innerText = "Data received. Parsing items...\n";
+        // Based on your JSON, 'exalted' is in the 'lines' array with 'primaryValue'
+        const exLine = data.lines.find(l => l.id === 'exalted');
 
-        // Find items by checking various possible key names
-        const findOrb = (name) => data.lines.find(i => 
-            (i.currencyTypeName && i.currencyTypeName.includes(name)) || 
-            (i.detailsId && i.detailsId.includes(name.toLowerCase().replace(' ', '-')))
-        );
-
-        const div = findOrb('Divine');
-        const ex = findOrb('Exalted');
-
-        if (div && ex) {
-            const rate = (div.chaosEquivalent / ex.chaosEquivalent).toFixed(2);
+        if (exLine && exLine.primaryValue) {
+            // primaryValue is the Divine price of 1 Exalt. 
+            // To get Exalts per 1 Divine, we do 1 / primaryValue.
+            const rate = (1 / exLine.primaryValue).toFixed(2);
+            
             document.getElementById('divExRate').value = rate;
-            log.innerText += `SUCCESS!\nDivine Chaos: ${div.chaosEquivalent}\nExalt Chaos: ${ex.chaosEquivalent}\nRatio: ${rate}`;
+            debug.innerText = `Success! Exalt primaryValue: ${exLine.primaryValue} | Ratio: 1:${rate}`;
             calculate();
         } else {
-            log.innerText += "ERROR: Could not find orbs in data.\nAvailable items: " + 
-                data.lines.slice(0, 5).map(i => i.currencyTypeName || i.detailsId).join(', ') + "...";
+            debug.innerText = "Error: Found data but 'exalted' line was missing.";
         }
     } catch (e) {
-        log.innerText += "FETCH FAILED: " + e.message;
+        debug.innerText = "Fetch error: " + e.message;
     }
 }
 
@@ -94,7 +77,10 @@ function calculate() {
     const pEx = parseFloat(document.getElementById('pEx').value);
     const res = document.getElementById('result');
 
-    if (!rate || !pDiv || !pEx) { res.style.display = 'none'; return; }
+    if (!rate || !pDiv || !pEx) {
+        res.style.display = 'none';
+        return;
+    }
 
     res.style.display = 'block';
     const costIfConverted = pDiv * rate;
@@ -102,10 +88,13 @@ function calculate() {
     
     if (costIfConverted < pEx) {
         res.className = 'result better';
-        res.innerHTML = `CONVERT TO EXALTS<br><small>Saves you ~${diff} Exalts.</small>`;
-    } else {
+        res.innerHTML = `CONVERT TO EXALTS<br><small>Converting your Divines saves ~${diff} Exalts.</small>`;
+    } else if (costIfConverted > pEx) {
         res.className = 'result worse';
-        res.innerHTML = `PAY DIVINES DIRECTLY<br><small>Saves you ~${diff} Exalts equivalent.</small>`;
+        res.innerHTML = `BUY IN DIVINES<br><small>Divine price is ~${diff} Exalts cheaper.</small>`;
+    } else {
+        res.className = 'result';
+        res.innerHTML = `PRICES ARE EQUAL`;
     }
 }
 
