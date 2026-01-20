@@ -3,19 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vaal Arbitrage - Bulk View</title>
+    <title>Vaal Arbitrage - Fixed Ratios</title>
     <style>
         :root { --gold: #e1ad5f; --bg: #0c0c0c; --card: #161616; --border: #2a2a2a; --green: #95d5b2; --blue: #66ccff; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: #d1d1d1; padding: 10px; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 950px; }
+        .container { width: 100%; max-width: 1000px; }
         .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; overflow-x: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
         h2 { color: var(--gold); text-align: center; margin-top: 0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
         
-        .rates-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        /* Benchmarks Grid */
+        .rates-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
         .rate-box { background: #222; padding: 10px; border-radius: 6px; text-align: center; border: 1px solid #333; }
-        .rate-box small { display: block; color: #888; font-size: 0.7rem; }
+        .rate-box small { display: block; color: #888; font-size: 0.65rem; margin-bottom: 4px; }
+        .rate-box span { font-family: monospace; font-weight: bold; font-size: 1.1rem; color: #fff; }
 
-        table { width: 100%; border-collapse: collapse; font-size: 0.75rem; min-width: 800px; }
+        /* Table */
+        table { width: 100%; border-collapse: collapse; font-size: 0.75rem; min-width: 850px; }
         th { text-align: left; color: #777; padding: 10px 5px; border-bottom: 2px solid #333; text-transform: uppercase; font-size: 0.6rem; }
         td { padding: 10px 5px; border-bottom: 1px solid #222; }
         .val-col { font-family: monospace; text-align: right; white-space: nowrap; }
@@ -36,18 +39,19 @@
 <body>
 
 <div class="container">
-    <button class="btn-sync" onclick="fetchRates()">SYNC MARKET DATA</button>
+    <button class="btn-sync" onclick="fetchRates()">SYNC LIVE MARKET DATA</button>
 
     <div class="card">
-        <h2>Market Ratios</h2>
+        <h2>Live Ratios</h2>
         <div class="rates-grid">
             <div class="rate-box"><small>1 DIVINE : EXALTS</small><span id="rate-div-ex">---</span></div>
             <div class="rate-box"><small>1 DIVINE : CHAOS</small><span id="rate-div-ch">---</span></div>
+            <div class="rate-box"><small>1 EXALT : CHAOS</small><span id="rate-ex-ch">---</span></div>
         </div>
     </div>
 
     <div class="card">
-        <h2>Arbitrage & Bulk Rates</h2>
+        <h2>Optimal Purchase Analysis (Normalized to Exalts)</h2>
         <table>
             <thead>
                 <tr>
@@ -70,9 +74,8 @@
 const targetItems = ["perfect-exalted-orb", "perfect-orb-of-augmentation", "scrap"];
 let rates = { d2e: 0, d2c: 0, e2c: 0 };
 
-// Helper to format as "1 : X" if price is small
 function formatPrice(val) {
-    if (val === 0) return "---";
+    if (!val || val === 0) return "---";
     if (val < 1) {
         return `<span class="bulk-label">1:</span>${Math.round(1 / val).toLocaleString()}`;
     }
@@ -87,15 +90,17 @@ async function fetchRates() {
         const response = await fetch(proxy + encodeURIComponent(target));
         const data = await response.json();
         
+        // Benchmarks
         const exLine = data.lines.find(l => l.id === 'exalted');
         const chLine = data.lines.find(l => l.id === 'chaos');
         
         rates.d2e = 1 / exLine.primaryValue;
         rates.d2c = 1 / chLine.primaryValue;
-        rates.e2c = rates.d2c / rates.d2e; 
+        rates.e2c = rates.d2c / rates.d2e; // 1 Ex = X Chaos
 
         document.getElementById('rate-div-ex').innerText = rates.d2e.toFixed(1);
         document.getElementById('rate-div-ch').innerText = rates.d2c.toFixed(0);
+        document.getElementById('rate-ex-ch').innerText = rates.e2c.toFixed(1);
 
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = '';
@@ -105,43 +110,42 @@ async function fetchRates() {
             const meta = data.items.find(i => i.detailsId === (slug === 'scrap' ? 'armourers-scrap' : slug));
             if (!line) return;
 
-            const dPrice = line.primaryValue; // Price in Divines
-            const altCurr = line.maxVolumeCurrency; 
-            const altPrice = 1 / line.maxVolumeRate; // Price in either Ex or Chaos
+            // API Data
+            const apiDivPrice = line.primaryValue;
+            const apiAltCurrency = line.maxVolumeCurrency; // usually 'exalted'
+            const apiAltPrice = 1 / line.maxVolumeRate;    // usually the Exalt price
 
-            // Direct Costs
-            const priceInDiv = dPrice;
-            const priceInEx = (altCurr === 'exalted') ? altPrice : (dPrice * rates.d2e);
-            const priceInCh = (altCurr === 'chaos') ? altPrice : (dPrice * rates.d2c);
+            // --- CALCULATE DIRECT PRICES ---
+            // If API says price is in Exalts, we calculate Chaos/Div from that.
+            // If API says price is in Chaos, we calculate Exalt/Div from that.
+            let pDiv, pEx, pCh;
+            
+            if (apiAltCurrency === 'exalted') {
+                pEx = apiAltPrice;
+                pDiv = pEx / rates.d2e;
+                pCh = pEx * rates.e2c;
+            } else if (apiAltCurrency === 'chaos') {
+                pCh = apiAltPrice;
+                pDiv = pCh / rates.d2c;
+                pEx = pCh / rates.e2c;
+            } else {
+                pDiv = apiDivPrice;
+                pEx = pDiv * rates.d2e;
+                pCh = pDiv * rates.d2c;
+            }
 
-            // Normalized Costs (All in Exalts)
-            const normViaDiv = dPrice * rates.d2e;
-            const normViaEx = (altCurr === 'exalted') ? altPrice : (dPrice * rates.d2e);
-            const normViaCh = (altCurr === 'chaos') ? (altPrice / (rates.d2c / rates.d2e)) : (dPrice * rates.d2e);
+            // --- CALCULATE NORMALIZED (All converted to Exalts) ---
+            const nViaDiv = apiDivPrice * rates.d2e; 
+            const nViaEx = (apiAltCurrency === 'exalted') ? apiAltPrice : (apiDivPrice * rates.d2e);
+            const nViaCh = (apiAltCurrency === 'chaos') ? (apiAltPrice / rates.e2c) : (apiDivPrice * rates.d2e);
 
             const paths = [
-                { name: 'DIV', val: normViaDiv, tag: 'tag-div' },
-                { name: 'EX', val: normViaEx, tag: 'tag-ex' },
-                { name: 'CH', val: normViaCh, tag: 'tag-ch' }
+                { name: 'DIV', val: nViaDiv, tag: 'tag-div' },
+                { name: 'EX', val: nViaEx, tag: 'tag-ex' },
+                { name: 'CH', val: nViaCh, tag: 'tag-ch' }
             ];
             const best = paths.reduce((prev, curr) => (prev.val < curr.val) ? prev : curr);
 
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td><strong>${meta ? meta.name : slug}</strong></td>
-                <td class="val-col group-direct">${formatPrice(priceInDiv)}</td>
-                <td class="val-col group-direct">${formatPrice(priceInEx)}</td>
-                <td class="val-col group-direct">${formatPrice(priceInCh)}</td>
-                <td class="val-col group-norm ${best.name === 'DIV' ? 'highlight' : 'strike'}">${normViaDiv.toFixed(3)}</td>
-                <td class="val-col group-norm ${best.name === 'EX' ? 'highlight' : 'strike'}">${normViaEx.toFixed(3)}</td>
-                <td class="val-col group-norm ${best.name === 'CH' ? 'highlight' : 'strike'}">${normViaCh.toFixed(3)}</td>
-                <td style="text-align:center"><span class="tag ${best.tag}">${best.name}</span></td>
-            `;
-            tbody.appendChild(row);
-        });
-    } catch (e) { console.error(e); }
-}
-window.onload = fetchRates;
-</script>
-</body>
-</html>
+                <td><strong>${meta ?
