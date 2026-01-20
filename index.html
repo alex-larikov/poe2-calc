@@ -3,76 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vaal Arbitrage & Table</title>
+    <title>Vaal Arbitrage - Bulk View</title>
     <style>
-        :root { --gold: #e1ad5f; --bg: #0c0c0c; --card: #161616; --border: #2a2a2a; --green: #95d5b2; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); color: #d1d1d1; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 700px; }
-        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
-        h2 { color: var(--gold); text-align: center; margin-top: 0; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; }
+        :root { --gold: #e1ad5f; --bg: #0c0c0c; --card: #161616; --border: #2a2a2a; --green: #95d5b2; --blue: #66ccff; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: #d1d1d1; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 950px; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; overflow-x: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+        h2 { color: var(--gold); text-align: center; margin-top: 0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
         
-        /* Dashboard Styles */
         .rates-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .rate-box { background: #222; padding: 10px; border-radius: 6px; text-align: center; border: 1px solid #333; }
         .rate-box small { display: block; color: #888; font-size: 0.7rem; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.75rem; min-width: 800px; }
+        th { text-align: left; color: #777; padding: 10px 5px; border-bottom: 2px solid #333; text-transform: uppercase; font-size: 0.6rem; }
+        td { padding: 10px 5px; border-bottom: 1px solid #222; }
+        .val-col { font-family: monospace; text-align: right; white-space: nowrap; }
         
-        /* Optimal Tags */
-        .optimal-tag { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; text-transform: uppercase; margin-left: 10px; }
-        .tag-div { background: #4a3a1a; color: #ffcc66; }
+        .group-direct { background: rgba(255,255,255,0.02); }
+        .group-norm { background: rgba(225, 173, 95, 0.04); }
+        .bulk-label { color: var(--blue); font-size: 0.65rem; margin-right: 4px; }
+        .highlight { color: var(--green); font-weight: bold; }
+        .strike { text-decoration: line-through; opacity: 0.3; }
+        
+        .tag { font-size: 0.6rem; padding: 2px 5px; border-radius: 3px; font-weight: bold; }
+        .tag-div { background: #4a3a1a; color: #e1ad5f; }
         .tag-ex { background: #1a2e4a; color: #66ccff; }
         .tag-ch { background: #2d4a1a; color: #95d5b2; }
-
-        /* Table Styles */
-        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 10px; }
-        th { text-align: left; color: #666; padding: 8px; border-bottom: 2px solid #333; }
-        td { padding: 8px; border-bottom: 1px solid #222; }
-        .val-col { font-family: monospace; text-align: right; }
-        .highlight { color: var(--green); font-weight: bold; }
-        .strike { text-decoration: line-through; opacity: 0.5; font-size: 0.75rem; }
-
         .btn-sync { width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 6px; color: #000; font-weight: 800; cursor: pointer; margin-bottom: 10px; }
-        .status { font-size: 0.65rem; text-align: center; color: #555; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <button class="btn-sync" onclick="fetchRates()">SYNC LIVE MARKET DATA</button>
-    <div id="status" class="status">Waiting for user sync...</div>
+    <button class="btn-sync" onclick="fetchRates()">SYNC MARKET DATA</button>
 
     <div class="card">
-        <h2>Live Benchmarks</h2>
+        <h2>Market Ratios</h2>
         <div class="rates-grid">
-            <div class="rate-box"><small>1 DIV : ? EX</small><span id="rate-div-ex">---</span></div>
-            <div class="rate-box"><small>1 DIV : ? CHAOS</small><span id="rate-div-ch">---</span></div>
+            <div class="rate-box"><small>1 DIVINE : EXALTS</small><span id="rate-div-ex">---</span></div>
+            <div class="rate-box"><small>1 DIVINE : CHAOS</small><span id="rate-div-ch">---</span></div>
         </div>
     </div>
 
     <div class="card">
-        <h2>Price Comparison (Value in Exalts)</h2>
-        <table id="details-table">
+        <h2>Arbitrage & Bulk Rates</h2>
+        <table>
             <thead>
                 <tr>
-                    <th>Item</th>
-                    <th class="val-col">Via Div</th>
-                    <th class="val-col">Via Chaos</th>
-                    <th class="val-col">Via Ex</th>
-                    <th class="val-col">Best Path</th>
+                    <th>Item Name</th>
+                    <th class="val-col group-direct">Direct (Div)</th>
+                    <th class="val-col group-direct">Direct (Ex)</th>
+                    <th class="val-col group-direct">Direct (Ch)</th>
+                    <th class="val-col group-norm">Norm (Div)</th>
+                    <th class="val-col group-norm">Norm (Ex)</th>
+                    <th class="val-col group-norm">Norm (Ch)</th>
+                    <th style="text-align:center">Best</th>
                 </tr>
             </thead>
-            <tbody id="table-body">
-                </tbody>
+            <tbody id="table-body"></tbody>
         </table>
     </div>
 </div>
 
 <script>
-// Correct IDs from your JSON
 const targetItems = ["perfect-exalted-orb", "perfect-orb-of-augmentation", "scrap"];
-let rates = { d2e: 0, d2c: 0, c2e: 0 };
+let rates = { d2e: 0, d2c: 0, e2c: 0 };
+
+// Helper to format as "1 : X" if price is small
+function formatPrice(val) {
+    if (val === 0) return "---";
+    if (val < 1) {
+        return `<span class="bulk-label">1:</span>${Math.round(1 / val).toLocaleString()}`;
+    }
+    return val.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+}
 
 async function fetchRates() {
-    const status = document.getElementById('status');
     const proxy = "https://corsproxy.io/?";
     const target = "https://poe.ninja/poe2/api/economy/exchange/current/overview?league=Fate+of+the+Vaal&type=Currency";
     
@@ -80,67 +87,61 @@ async function fetchRates() {
         const response = await fetch(proxy + encodeURIComponent(target));
         const data = await response.json();
         
-        // 1. Setup Benchmarks
         const exLine = data.lines.find(l => l.id === 'exalted');
         const chLine = data.lines.find(l => l.id === 'chaos');
         
-        rates.d2e = 1 / exLine.primaryValue; // How many Ex per Div
-        rates.d2c = 1 / chLine.primaryValue; // How many Chaos per Div
-        rates.c2e = rates.d2e / rates.d2c;   // How many Ex per Chaos
+        rates.d2e = 1 / exLine.primaryValue;
+        rates.d2c = 1 / chLine.primaryValue;
+        rates.e2c = rates.d2c / rates.d2e; 
 
-        document.getElementById('rate-div-ex').innerText = rates.d2e.toFixed(2);
-        document.getElementById('rate-div-ch').innerText = rates.d2c.toFixed(2);
+        document.getElementById('rate-div-ex').innerText = rates.d2e.toFixed(1);
+        document.getElementById('rate-div-ch').innerText = rates.d2c.toFixed(0);
 
-        // 2. Build Table
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = '';
 
         targetItems.forEach(slug => {
             const line = data.lines.find(l => l.id === slug);
             const meta = data.items.find(i => i.detailsId === (slug === 'scrap' ? 'armourers-scrap' : slug));
-            if (!line || !meta) return;
+            if (!line) return;
 
-            // Direct Costs from API
-            const costInDiv = line.primaryValue;
-            
-            // maxVolume info
-            const altCurr = line.maxVolumeCurrency; // e.g., 'exalted'
-            const altRate = line.maxVolumeRate;     // items per 1 alt currency
-            const costInAlt = 1 / altRate;
+            const dPrice = line.primaryValue; // Price in Divines
+            const altCurr = line.maxVolumeCurrency; 
+            const altPrice = 1 / line.maxVolumeRate; // Price in either Ex or Chaos
 
-            // Normalize EVERYTHING to Exalts for comparison
-            const viaDiv = costInDiv * rates.d2e;
-            const viaChaos = (altCurr === 'chaos') ? costInAlt : (costInDiv * rates.d2e); // simplify if chaos isn't primary alt
-            const viaEx = (altCurr === 'exalted') ? costInAlt : (costInDiv * rates.d2e);
+            // Direct Costs
+            const priceInDiv = dPrice;
+            const priceInEx = (altCurr === 'exalted') ? altPrice : (dPrice * rates.d2e);
+            const priceInCh = (altCurr === 'chaos') ? altPrice : (dPrice * rates.d2c);
 
-            // Determine best path
-            const costs = [
-                { name: 'Divine', val: viaDiv, tag: 'tag-div' },
-                { name: 'Chaos', val: viaChaos, tag: 'tag-ch' },
-                { name: 'Exalted', val: viaEx, tag: 'tag-ex' }
+            // Normalized Costs (All in Exalts)
+            const normViaDiv = dPrice * rates.d2e;
+            const normViaEx = (altCurr === 'exalted') ? altPrice : (dPrice * rates.d2e);
+            const normViaCh = (altCurr === 'chaos') ? (altPrice / (rates.d2c / rates.d2e)) : (dPrice * rates.d2e);
+
+            const paths = [
+                { name: 'DIV', val: normViaDiv, tag: 'tag-div' },
+                { name: 'EX', val: normViaEx, tag: 'tag-ex' },
+                { name: 'CH', val: normViaCh, tag: 'tag-ch' }
             ];
-            const best = costs.reduce((prev, curr) => (prev.val < curr.val) ? prev : curr);
+            const best = paths.reduce((prev, curr) => (prev.val < curr.val) ? prev : curr);
 
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td><strong>${meta.name}</strong></td>
-                <td class="val-col ${best.name === 'Divine' ? 'highlight' : 'strike'}">${viaDiv.toFixed(3)}</td>
-                <td class="val-col ${best.name === 'Chaos' ? 'highlight' : 'strike'}">${viaChaos.toFixed(3)}</td>
-                <td class="val-col ${best.name === 'Exalted' ? 'highlight' : 'strike'}">${viaEx.toFixed(3)}</td>
-                <td class="val-col"><span class="optimal-tag ${best.tag}">${best.name}</span></td>
+                <td><strong>${meta ? meta.name : slug}</strong></td>
+                <td class="val-col group-direct">${formatPrice(priceInDiv)}</td>
+                <td class="val-col group-direct">${formatPrice(priceInEx)}</td>
+                <td class="val-col group-direct">${formatPrice(priceInCh)}</td>
+                <td class="val-col group-norm ${best.name === 'DIV' ? 'highlight' : 'strike'}">${normViaDiv.toFixed(3)}</td>
+                <td class="val-col group-norm ${best.name === 'EX' ? 'highlight' : 'strike'}">${normViaEx.toFixed(3)}</td>
+                <td class="val-col group-norm ${best.name === 'CH' ? 'highlight' : 'strike'}">${normViaCh.toFixed(3)}</td>
+                <td style="text-align:center"><span class="tag ${best.tag}">${best.name}</span></td>
             `;
             tbody.appendChild(row);
         });
-
-        status.innerText = "UPDATED: " + new Date().toLocaleTimeString();
-    } catch (e) {
-        status.innerText = "Sync failed. Check browser console.";
-        console.error(e);
-    }
+    } catch (e) { console.error(e); }
 }
-
 window.onload = fetchRates;
 </script>
-
 </body>
 </html>
