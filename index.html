@@ -3,24 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vaal Arbitrage - Fixed Ratios</title>
+    <title>Vaal Arbitrage - Deep Data</title>
     <style>
         :root { --gold: #e1ad5f; --bg: #0c0c0c; --card: #161616; --border: #2a2a2a; --green: #95d5b2; --blue: #66ccff; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: #d1d1d1; padding: 10px; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 1000px; }
-        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; overflow-x: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
         h2 { color: var(--gold); text-align: center; margin-top: 0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
         
-        /* Benchmarks Grid */
         .rates-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
         .rate-box { background: #222; padding: 10px; border-radius: 6px; text-align: center; border: 1px solid #333; }
         .rate-box small { display: block; color: #888; font-size: 0.65rem; margin-bottom: 4px; }
-        .rate-box span { font-family: monospace; font-weight: bold; font-size: 1.1rem; color: #fff; }
+        .rate-box span { font-family: monospace; font-weight: bold; color: #fff; }
 
-        /* Table */
-        table { width: 100%; border-collapse: collapse; font-size: 0.75rem; min-width: 850px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
         th { text-align: left; color: #777; padding: 10px 5px; border-bottom: 2px solid #333; text-transform: uppercase; font-size: 0.6rem; }
-        td { padding: 10px 5px; border-bottom: 1px solid #222; }
+        td { padding: 12px 5px; border-bottom: 1px solid #222; }
         .val-col { font-family: monospace; text-align: right; white-space: nowrap; }
         
         .group-direct { background: rgba(255,255,255,0.02); }
@@ -39,23 +37,23 @@
 <body>
 
 <div class="container">
-    <button class="btn-sync" onclick="fetchRates()">SYNC LIVE MARKET DATA</button>
+    <button class="btn-sync" id="sync-btn" onclick="runArbitrage()">SYNC LIVE DATA (ALL SOURCES)</button>
 
     <div class="card">
-        <h2>Live Ratios</h2>
+        <h2>Global Benchmarks</h2>
         <div class="rates-grid">
-            <div class="rate-box"><small>1 DIVINE : EXALTS</small><span id="rate-div-ex">---</span></div>
-            <div class="rate-box"><small>1 DIVINE : CHAOS</small><span id="rate-div-ch">---</span></div>
-            <div class="rate-box"><small>1 EXALT : CHAOS</small><span id="rate-ex-ch">---</span></div>
+            <div class="rate-box"><small>1 DIV : EX</small><span id="rate-div-ex">---</span></div>
+            <div class="rate-box"><small>1 DIV : CH</small><span id="rate-div-ch">---</span></div>
+            <div class="rate-box"><small>1 EX : CH</small><span id="rate-ex-ch">---</span></div>
         </div>
     </div>
 
     <div class="card">
-        <h2>Optimal Purchase Analysis (Normalized to Exalts)</h2>
+        <h2>Arbitrage Analysis</h2>
         <table>
             <thead>
                 <tr>
-                    <th>Item Name</th>
+                    <th>Item</th>
                     <th class="val-col group-direct">Direct (Div)</th>
                     <th class="val-col group-direct">Direct (Ex)</th>
                     <th class="val-col group-direct">Direct (Ch)</th>
@@ -71,97 +69,101 @@
 </div>
 
 <script>
-const targetItems = ["perfect-exalted-orb", "perfect-orb-of-augmentation", "scrap"];
-let rates = { d2e: 0, d2c: 0, e2c: 0 };
+// We map the common name to the specific details-id used in the details API
+const itemMap = {
+    "Perfect Exalted": "perfect-exalted-orb",
+    "Perfect Aug": "perfect-orb-of-augmentation",
+    "Scrap": "armourers-scrap"
+};
+
+const proxy = "https://corsproxy.io/?";
+const baseDetailsUrl = "https://poe.ninja/poe2/api/economy/exchange/current/details?league=Fate+of+the+Vaal&type=Currency&id=";
 
 function formatPrice(val) {
     if (!val || val === 0) return "---";
-    if (val < 1) {
-        return `<span class="bulk-label">1:</span>${Math.round(1 / val).toLocaleString()}`;
-    }
-    return val.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+    return val < 1 
+        ? `<span class="bulk-label">1:</span>${Math.round(1 / val).toLocaleString()}` 
+        : val.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 });
 }
 
-async function fetchRates() {
-    const proxy = "https://corsproxy.io/?";
-    const target = "https://poe.ninja/poe2/api/economy/exchange/current/overview?league=Fate+of+the+Vaal&type=Currency";
-    
+async function runArbitrage() {
+    const btn = document.getElementById('sync-btn');
+    btn.innerText = "FETCHING DATA...";
+    const tbody = document.getElementById('table-body');
+    tbody.innerHTML = '';
+
     try {
-        const response = await fetch(proxy + encodeURIComponent(target));
-        const data = await response.json();
+        // 1. First, get the general rates to establish our global bench (for normalization)
+        const overviewRes = await fetch(proxy + encodeURIComponent("https://poe.ninja/poe2/api/economy/exchange/current/overview?league=Fate+of+the+Vaal&type=Currency"));
+        const overviewData = await overviewRes.json();
         
-        // Benchmarks
-        const exLine = data.lines.find(l => l.id === 'exalted');
-        const chLine = data.lines.find(l => l.id === 'chaos');
+        const exLine = overviewData.lines.find(l => l.id === 'exalted');
+        const chLine = overviewData.lines.find(l => l.id === 'chaos');
         
-        rates.d2e = 1 / exLine.primaryValue;
-        rates.d2c = 1 / chLine.primaryValue;
-        rates.e2c = rates.d2c / rates.d2e; // 1 Ex = X Chaos
+        const d2e = 1 / exLine.primaryValue;
+        const d2c = 1 / chLine.primaryValue;
+        const e2c = d2c / d2e;
 
-        document.getElementById('rate-div-ex').innerText = rates.d2e.toFixed(1);
-        document.getElementById('rate-div-ch').innerText = rates.d2c.toFixed(0);
-        document.getElementById('rate-ex-ch').innerText = rates.e2c.toFixed(1);
+        document.getElementById('rate-div-ex').innerText = d2e.toFixed(1);
+        document.getElementById('rate-div-ch').innerText = d2c.toFixed(0);
+        document.getElementById('rate-ex-ch').innerText = e2c.toFixed(1);
 
-        const tbody = document.getElementById('table-body');
-        tbody.innerHTML = '';
-
-        targetItems.forEach(slug => {
-            const line = data.lines.find(l => l.id === slug);
-            const meta = data.items.find(i => i.detailsId === (slug === 'scrap' ? 'armourers-scrap' : slug));
-            if (!line) return;
-
-            // API Data
-            const apiDivPrice = line.primaryValue;
-            const apiAltCurrency = line.maxVolumeCurrency; // usually 'exalted'
-            const apiAltPrice = 1 / line.maxVolumeRate;    // usually the Exalt price
-
-            // --- CALCULATE DIRECT PRICES ---
-            // If API says price is in Exalts, we calculate Chaos/Div from that.
-            // If API says price is in Chaos, we calculate Exalt/Div from that.
-            let pDiv, pEx, pCh;
+        // 2. Parallel Fetch for each item's specific pairs
+        const promises = Object.entries(itemMap).map(async ([friendlyName, id]) => {
+            const res = await fetch(proxy + encodeURIComponent(baseDetailsUrl + id));
+            const data = await res.json();
             
-            if (apiAltCurrency === 'exalted') {
-                pEx = apiAltPrice;
-                pDiv = pEx / rates.d2e;
-                pCh = pEx * rates.e2c;
-            } else if (apiAltCurrency === 'chaos') {
-                pCh = apiAltPrice;
-                pDiv = pCh / rates.d2c;
-                pEx = pCh / rates.e2c;
-            } else {
-                pDiv = apiDivPrice;
-                pEx = pDiv * rates.d2e;
-                pCh = pDiv * rates.d2c;
-            }
+            // Extract specific rates from the "pairs" array
+            const divPair = data.pairs.find(p => p.id === 'divine');
+            const exPair = data.pairs.find(p => p.id === 'exalted');
+            const chPair = data.pairs.find(p => p.id === 'chaos');
 
-            // --- CALCULATE NORMALIZED (All converted to Exalts) ---
-            const nViaDiv = apiDivPrice * rates.d2e; 
-            const nViaEx = (apiAltCurrency === 'exalted') ? apiAltPrice : (apiDivPrice * rates.d2e);
-            const nViaCh = (apiAltCurrency === 'chaos') ? (apiAltPrice / rates.e2c) : (apiDivPrice * rates.d2e);
+            const pDiv = divPair ? divPair.rate : 0;
+            const pEx = exPair ? exPair.rate : 0;
+            const pCh = chPair ? chPair.rate : 0;
+
+            // Normalize everything to Exalts for comparison
+            // (Price in Div * D2E) vs (Price in Ex) vs (Price in Chaos / E2C)
+            const nDiv = pDiv * d2e;
+            const nEx = pEx;
+            const nCh = pCh / e2c;
 
             const paths = [
-                { name: 'DIV', val: nViaDiv, tag: 'tag-div' },
-                { name: 'EX', val: nViaEx, tag: 'tag-ex' },
-                { name: 'CH', val: nViaCh, tag: 'tag-ch' }
-            ];
+                { name: 'DIV', val: nDiv, tag: 'tag-div' },
+                { name: 'EX', val: nEx, tag: 'tag-ex' },
+                { name: 'CH', val: nCh, tag: 'tag-ch' }
+            ].filter(p => p.val > 0);
+
             const best = paths.reduce((prev, curr) => (prev.val < curr.val) ? prev : curr);
 
+            return { friendlyName, pDiv, pEx, pCh, nDiv, nEx, nCh, best };
+        });
+
+        const results = await Promise.all(promises);
+
+        results.forEach(res => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td><strong>${meta ? meta.name : slug}</strong></td>
-                <td class="val-col group-direct">${formatPrice(pDiv)}</td>
-                <td class="val-col group-direct">${formatPrice(pEx)}</td>
-                <td class="val-col group-direct">${formatPrice(pCh)}</td>
-                <td class="val-col group-norm ${best.name === 'DIV' ? 'highlight' : 'strike'}">${nViaDiv.toFixed(3)}</td>
-                <td class="val-col group-norm ${best.name === 'EX' ? 'highlight' : 'strike'}">${nViaEx.toFixed(3)}</td>
-                <td class="val-col group-norm ${best.name === 'CH' ? 'highlight' : 'strike'}">${nViaCh.toFixed(3)}</td>
-                <td style="text-align:center"><span class="tag ${best.tag}">${best.name}</span></td>
+                <td><strong>${res.friendlyName}</strong></td>
+                <td class="val-col group-direct">${formatPrice(res.pDiv)}</td>
+                <td class="val-col group-direct">${formatPrice(res.pEx)}</td>
+                <td class="val-col group-direct">${formatPrice(res.pCh)}</td>
+                <td class="val-col group-norm ${res.best.name === 'DIV' ? 'highlight' : 'strike'}">${res.nDiv.toFixed(3)}</td>
+                <td class="val-col group-norm ${res.best.name === 'EX' ? 'highlight' : 'strike'}">${res.nEx.toFixed(3)}</td>
+                <td class="val-col group-norm ${res.best.name === 'CH' ? 'highlight' : 'strike'}">${res.nCh.toFixed(3)}</td>
+                <td style="text-align:center"><span class="tag ${res.best.tag}">${res.best.name}</span></td>
             `;
             tbody.appendChild(row);
         });
-    } catch (e) { console.error(e); }
+
+    } catch (e) {
+        console.error(e);
+        btn.innerText = "ERROR - TRY AGAIN";
+    } finally {
+        btn.innerText = "SYNC LIVE DATA (ALL SOURCES)";
+    }
 }
-window.onload = fetchRates;
+window.onload = runArbitrage;
 </script>
 </body>
 </html>
