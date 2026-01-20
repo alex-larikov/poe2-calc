@@ -148,4 +148,20 @@ async function fetchRates() {
 
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td><strong>${meta ?
+                <td><strong>${meta ? meta.name : slug}</strong></td>
+                <td class="val-col group-direct">${formatPrice(pDiv)}</td>
+                <td class="val-col group-direct">${formatPrice(pEx)}</td>
+                <td class="val-col group-direct">${formatPrice(pCh)}</td>
+                <td class="val-col group-norm ${best.name === 'DIV' ? 'highlight' : 'strike'}">${nViaDiv.toFixed(3)}</td>
+                <td class="val-col group-norm ${best.name === 'EX' ? 'highlight' : 'strike'}">${nViaEx.toFixed(3)}</td>
+                <td class="val-col group-norm ${best.name === 'CH' ? 'highlight' : 'strike'}">${nViaCh.toFixed(3)}</td>
+                <td style="text-align:center"><span class="tag ${best.tag}">${best.name}</span></td>
+            `;
+            tbody.appendChild(row);
+        });
+    } catch (e) { console.error(e); }
+}
+window.onload = fetchRates;
+</script>
+</body>
+</html>
