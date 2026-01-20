@@ -3,62 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vaal Arbitrage Dashboard</title>
+    <title>Vaal Arbitrage & Table</title>
     <style>
-        :root { --gold: #e1ad5f; --bg: #0c0c0c; --card: #161616; --border: #2a2a2a; }
+        :root { --gold: #e1ad5f; --bg: #0c0c0c; --card: #161616; --border: #2a2a2a; --green: #95d5b2; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: #d1d1d1; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 500px; }
-        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 8px 32px rgba(0,0,0,0.6); margin-bottom: 15px; }
+        .container { width: 100%; max-width: 700px; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
         h2 { color: var(--gold); text-align: center; margin-top: 0; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; }
         
-        /* Rates Grid */
+        /* Dashboard Styles */
         .rates-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .rate-box { background: #222; padding: 10px; border-radius: 6px; text-align: center; border: 1px solid #333; }
-        .rate-box small { display: block; color: #888; font-size: 0.7rem; margin-bottom: 4px; }
-        .rate-box span { font-weight: bold; color: #fff; font-family: monospace; }
-
-        /* Items List */
-        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #222; }
-        .item-row:last-child { border-bottom: none; }
-        .item-info { flex: 1; }
-        .item-name { font-weight: bold; font-size: 0.9rem; color: #eee; }
-        .optimal-tag { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; margin-left: 5px; text-transform: uppercase; }
+        .rate-box small { display: block; color: #888; font-size: 0.7rem; }
+        
+        /* Optimal Tags */
+        .optimal-tag { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; text-transform: uppercase; margin-left: 10px; }
         .tag-div { background: #4a3a1a; color: #ffcc66; }
         .tag-ex { background: #1a2e4a; color: #66ccff; }
-        
-        .price-details { text-align: right; font-size: 0.8rem; font-family: monospace; }
-        .path-label { color: #666; font-size: 0.7rem; }
-        .path-val { color: #aaa; }
-        .best-val { color: var(--gold); font-weight: bold; }
+        .tag-ch { background: #2d4a1a; color: #95d5b2; }
 
-        .btn-sync { width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 6px; color: #000; font-weight: 800; cursor: pointer; margin-bottom: 15px; }
-        .status { font-size: 0.65rem; text-align: center; color: #555; font-family: monospace; }
+        /* Table Styles */
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 10px; }
+        th { text-align: left; color: #666; padding: 8px; border-bottom: 2px solid #333; }
+        td { padding: 8px; border-bottom: 1px solid #222; }
+        .val-col { font-family: monospace; text-align: right; }
+        .highlight { color: var(--green); font-weight: bold; }
+        .strike { text-decoration: line-through; opacity: 0.5; font-size: 0.75rem; }
+
+        .btn-sync { width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 6px; color: #000; font-weight: 800; cursor: pointer; margin-bottom: 10px; }
+        .status { font-size: 0.65rem; text-align: center; color: #555; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <button class="btn-sync" onclick="fetchRates()">SYNC FATE OF THE VAAL</button>
-    <div id="status" class="status">Waiting for sync...</div>
+    <button class="btn-sync" onclick="fetchRates()">SYNC LIVE MARKET DATA</button>
+    <div id="status" class="status">Waiting for user sync...</div>
 
     <div class="card">
-        <h2>Market Benchmarks</h2>
+        <h2>Live Benchmarks</h2>
         <div class="rates-grid">
-            <div class="rate-box"><small>DIV : EX</small><span id="rate-div-ex">---</span></div>
-            <div class="rate-box"><small>DIV : CHAOS</small><span id="rate-div-ch">---</span></div>
+            <div class="rate-box"><small>1 DIV : ? EX</small><span id="rate-div-ex">---</span></div>
+            <div class="rate-box"><small>1 DIV : ? CHAOS</small><span id="rate-div-ch">---</span></div>
         </div>
     </div>
 
     <div class="card">
-        <h2>Optimal Purchase Paths</h2>
-        <div id="item-list">
-            </div>
+        <h2>Price Comparison (Value in Exalts)</h2>
+        <table id="details-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th class="val-col">Via Div</th>
+                    <th class="val-col">Via Chaos</th>
+                    <th class="val-col">Via Ex</th>
+                    <th class="val-col">Best Path</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                </tbody>
+        </table>
     </div>
 </div>
 
 <script>
-const targetItems = ["perfect-exalted-orb", "perfect-orb-of-augmentation", "armourers-scrap"];
-let globalRates = { divToEx: 0, divToChaos: 0 };
+// Correct IDs from your JSON
+const targetItems = ["perfect-exalted-orb", "perfect-orb-of-augmentation", "scrap"];
+let rates = { d2e: 0, d2c: 0, c2e: 0 };
 
 async function fetchRates() {
     const status = document.getElementById('status');
@@ -69,68 +80,67 @@ async function fetchRates() {
         const response = await fetch(proxy + encodeURIComponent(target));
         const data = await response.json();
         
-        // 1. Get Base Benchmarks
+        // 1. Setup Benchmarks
         const exLine = data.lines.find(l => l.id === 'exalted');
-        const chaosLine = data.lines.find(l => l.id === 'chaos');
+        const chLine = data.lines.find(l => l.id === 'chaos');
         
-        globalRates.divToEx = 1 / exLine.primaryValue;
-        globalRates.divToChaos = 1 / chaosLine.primaryValue;
+        rates.d2e = 1 / exLine.primaryValue; // How many Ex per Div
+        rates.d2c = 1 / chLine.primaryValue; // How many Chaos per Div
+        rates.c2e = rates.d2e / rates.d2c;   // How many Ex per Chaos
 
-        document.getElementById('rate-div-ex').innerText = `1 : ${globalRates.divToEx.toFixed(1)}`;
-        document.getElementById('rate-div-ch').innerText = `1 : ${globalRates.divToChaos.toFixed(1)}`;
+        document.getElementById('rate-div-ex').innerText = rates.d2e.toFixed(2);
+        document.getElementById('rate-div-ch').innerText = rates.d2c.toFixed(2);
 
-        // 2. Process Specific Items
-        const listContainer = document.getElementById('item-list');
-        listContainer.innerHTML = '';
+        // 2. Build Table
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
 
         targetItems.forEach(slug => {
-            const itemData = data.lines.find(l => l.id === slug);
-            const itemMeta = data.items.find(i => i.detailsId === slug);
-            if (!itemData || !itemMeta) return;
+            const line = data.lines.find(l => l.id === slug);
+            const meta = data.items.find(i => i.detailsId === (slug === 'scrap' ? 'armourers-scrap' : slug));
+            if (!line || !meta) return;
 
-            // Math Logic:
-            // Path A: Buy with Divines (direct primaryValue)
-            // Path B: Buy with the 'maxVolumeCurrency' (usually Exalt or Chaos)
-            const divCost = itemData.primaryValue; // Cost in fractions of a Divine
-            const altCurrency = itemData.maxVolumeCurrency; // e.g. "exalted"
-            const altRate = itemData.maxVolumeRate; // e.g. 5.5 (items per 1 Exalt)
+            // Direct Costs from API
+            const costInDiv = line.primaryValue;
             
-            // Calculate which is better by converting Divine cost to the alt currency
-            // If buying with Exalts: 1 Divine = 299 Ex. Item costs 0.1 Div. 
-            // Buying with Div = 0.1 Div. Buying with Ex = (0.1 * 299) = 29.9 Ex.
-            const altEquivalentOfDiv = divCost * (altCurrency === 'exalted' ? globalRates.divToEx : globalRates.divToChaos);
-            const directAltCost = 1 / altRate; // Because Rate is items-per-currency
-            
-            const isAltBetter = directAltCost < altEquivalentOfDiv;
-            const bestPath = isAltBetter ? altCurrency : 'divine';
+            // maxVolume info
+            const altCurr = line.maxVolumeCurrency; // e.g., 'exalted'
+            const altRate = line.maxVolumeRate;     // items per 1 alt currency
+            const costInAlt = 1 / altRate;
 
-            const row = document.createElement('div');
-            row.className = 'item-row';
+            // Normalize EVERYTHING to Exalts for comparison
+            const viaDiv = costInDiv * rates.d2e;
+            const viaChaos = (altCurr === 'chaos') ? costInAlt : (costInDiv * rates.d2e); // simplify if chaos isn't primary alt
+            const viaEx = (altCurr === 'exalted') ? costInAlt : (costInDiv * rates.d2e);
+
+            // Determine best path
+            const costs = [
+                { name: 'Divine', val: viaDiv, tag: 'tag-div' },
+                { name: 'Chaos', val: viaChaos, tag: 'tag-ch' },
+                { name: 'Exalted', val: viaEx, tag: 'tag-ex' }
+            ];
+            const best = costs.reduce((prev, curr) => (prev.val < curr.val) ? prev : curr);
+
+            const row = document.createElement('tr');
             row.innerHTML = `
-                <div class="item-info">
-                    <div class="item-name">
-                        ${itemMeta.name}
-                        <span class="optimal-tag ${bestPath === 'divine' ? 'tag-div' : 'tag-ex'}">
-                            Use ${bestPath === 'exalted' ? 'Exalts' : bestPath}
-                        </span>
-                    </div>
-                </div>
-                <div class="price-details">
-                    <div><span class="path-label">Div:</span> <span class="${bestPath === 'divine' ? 'best-val' : 'path-val'}">${divCost.toFixed(4)}</span></div>
-                    <div><span class="path-label">${altCurrency.substring(0,2)}:</span> <span class="${bestPath !== 'divine' ? 'best-val' : 'path-val'}">${directAltCost.toFixed(2)}</span></div>
-                </div>
+                <td><strong>${meta.name}</strong></td>
+                <td class="val-col ${best.name === 'Divine' ? 'highlight' : 'strike'}">${viaDiv.toFixed(3)}</td>
+                <td class="val-col ${best.name === 'Chaos' ? 'highlight' : 'strike'}">${viaChaos.toFixed(3)}</td>
+                <td class="val-col ${best.name === 'Exalted' ? 'highlight' : 'strike'}">${viaEx.toFixed(3)}</td>
+                <td class="val-col"><span class="optimal-tag ${best.tag}">${best.name}</span></td>
             `;
-            listContainer.appendChild(row);
+            tbody.appendChild(row);
         });
 
-        status.innerText = "LAST SYNC: " + new Date().toLocaleTimeString();
+        status.innerText = "UPDATED: " + new Date().toLocaleTimeString();
     } catch (e) {
-        status.innerText = "Error syncing data.";
+        status.innerText = "Sync failed. Check browser console.";
         console.error(e);
     }
 }
 
 window.onload = fetchRates;
 </script>
+
 </body>
 </html>
