@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PoE 2 Currency Optimizer</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: #e0e0e0; padding: 20px; display: flex; justify-content: center; }
+        .card { background: #2a2a2a; padding: 20px; border-radius: 8px; width: 100%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        h2 { color: #e1ad5f; text-align: center; margin-top: 0; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 4px; }
+        input { width: 100%; padding: 10px; background: #333; border: 1px solid #444; color: white; border-radius: 4px; box-sizing: border-box; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 4px; text-align: center; font-weight: bold; }
+        .better { background: #1b4332; border: 1px solid #2d6a4f; color: #95d5b2; }
+        .worse { background: #431b1b; border: 1px solid #6a2d2d; color: #d59595; }
+        hr { border: 0; border-top: 1px solid #444; margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>PoE 2 Exchange Rate</h2>
+    
+    <div class="input-group">
+        <label>1 Divine costs (in Exalts)</label>
+        <input type="number" id="divExRate" placeholder="e.g. 50" oninput="calculate()">
+    </div>
+    <div class="input-group">
+        <label>1 Exalt costs (in Chaos)</label>
+        <input type="number" id="exChaosRate" placeholder="e.g. 20" oninput="calculate()">
+    </div>
+
+    <hr>
+
+    <div class="input-group">
+        <label>Item Price in Divines</label>
+        <input type="number" id="priceDiv" placeholder="e.g. 2" oninput="calculate()">
+    </div>
+    <div class="input-group">
+        <label>Item Price in Exalts</label>
+        <input type="number" id="priceEx" placeholder="e.g. 90" oninput="calculate()">
+    </div>
+
+    <div id="result" class="result" style="display:none;"></div>
+</div>
+
+<script>
+function calculate() {
+    const divEx = parseFloat(document.getElementById('divExRate').value);
+    const exChaos = parseFloat(document.getElementById('exChaosRate').value);
+    const pDiv = parseFloat(document.getElementById('priceDiv').value);
+    const pEx = parseFloat(document.getElementById('priceEx').value);
+
+    if (!divEx || !pDiv || !pEx) return;
+
+    const resultDiv = document.getElementById('result');
+    resultDiv.style.display = 'block';
+
+    // Calculation: How many Exalts do my Divines turn into?
+    const costInExIfConverted = pDiv * divEx;
+    
+    // Comparison
+    if (costInExIfConverted < pEx) {
+        const saved = (pEx - costInExIfConverted).toFixed(1);
+        resultDiv.className = 'result better';
+        resultDiv.innerHTML = `CONVERT TO EXALTS<br><small>You save ~${saved} Exalts by converting your Divines first.</small>`;
+    } else if (costInExIfConverted > pEx) {
+        const saved = (costInExIfConverted - pEx).toFixed(1);
+        resultDiv.className = 'result worse';
+        resultDiv.innerHTML = `BUY DIRECTLY WITH DIV<br><small>It is ${saved} Exalts cheaper to pay the Divine price.</small>`;
+    } else {
+        resultDiv.className = 'result';
+        resultDiv.innerHTML = "Prices are equal.";
+    }
+}
+</script>
+
+</body>
+</html>
