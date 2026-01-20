@@ -3,75 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PoE 2 Smart Calc</title>
+    <title>PoE 2: Fate of the Vaal Calc</title>
     <style>
-        body { font-family: sans-serif; background: #121212; color: #e0e0e0; padding: 20px; display: flex; justify-content: center; }
-        .card { background: #1e1e1e; padding: 25px; border-radius: 12px; width: 100%; max-width: 420px; border: 1px solid #333; }
-        h2 { color: #e1ad5f; text-align: center; margin: 0 0 20px 0; font-size: 1.5rem; }
-        .btn-fetch { width: 100%; padding: 12px; background: #e1ad5f; border: none; border-radius: 6px; color: #121212; font-weight: bold; cursor: pointer; margin-bottom: 20px; }
-        .btn-fetch:hover { background: #ffcc7a; }
-        .input-group { margin-bottom: 15px; }
-        label { display: block; font-size: 0.75rem; color: #aaa; margin-bottom: 5px; text-transform: uppercase; }
-        input { width: 100%; padding: 12px; background: #262626; border: 1px solid #444; color: white; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
-        .result { margin-top: 20px; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; border: 1px solid transparent; }
-        .better { background: #1b4332; color: #95d5b2; border-color: #2d6a4f; }
-        .worse { background: #431b1b; color: #d59595; border-color: #6a2d2d; }
-        .status { font-size: 0.7rem; text-align: center; color: #666; margin-top: 10px; }
+        body { font-family: -apple-system, sans-serif; background: #0f0f0f; color: #ddd; padding: 15px; display: flex; justify-content: center; }
+        .card { background: #1a1a1a; padding: 25px; border-radius: 12px; width: 100%; max-width: 400px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h2 { color: #e1ad5f; text-align: center; margin-top: 0; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px;}
+        label { display: block; font-size: 0.7rem; color: #888; margin-bottom: 4px; font-weight: bold; text-transform: uppercase; }
+        input { width: 100%; padding: 12px; background: #252525; border: 1px solid #444; color: white; border-radius: 6px; box-sizing: border-box; margin-bottom: 15px; font-size: 1rem; outline: none; }
+        input:focus { border-color: #e1ad5f; }
+        .btn-sync { width: 100%; padding: 12px; background: #e1ad5f; border: none; border-radius: 6px; color: #000; font-weight: bold; cursor: pointer; margin-bottom: 10px; transition: 0.2s; }
+        .btn-sync:hover { background: #f2c98a; }
+        .result { padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; margin-top: 10px; display: none; border: 1px solid transparent; }
+        .better { background: rgba(45, 106, 79, 0.2); border-color: #2d6a4f; color: #95d5b2; }
+        .worse { background: rgba(106, 45, 45, 0.2); border-color: #6a2d2d; color: #d59595; }
+        .status { font-size: 0.65rem; text-align: center; margin-bottom: 15px; color: #666; font-family: monospace; }
+        small { display: block; font-size: 0.8rem; margin-top: 5px; opacity: 0.8; }
+        hr { border: 0; border-top: 1px solid #333; margin: 20px 0; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>PoE 2 Exchange Helper</h2>
+    <h2>Fate of the Vaal Helper</h2>
     
-    <button class="btn-fetch" onclick="fetchRates()">Update Market Rates</button>
-    <div id="status" class="status">Rates: Manual Entry</div>
+    <button class="btn-sync" onclick="fetchRates()">Sync Market Rates</button>
+    <div id="status" class="status">NOT SYNCED</div>
 
-    <div class="input-group">
-        <label>1 Divine = ? Exalts</label>
-        <input type="number" id="divExRate" placeholder="Fetch or enter..." oninput="calculate()">
-    </div>
+    <label>1 Divine = ? Exalts</label>
+    <input type="number" id="divExRate" placeholder="Enter or Sync..." step="0.01" oninput="calculate()">
 
-    <hr style="border:0; border-top: 1px solid #333; margin: 20px 0;">
+    <hr>
 
-    <div class="input-group">
-        <label>Item Price (Divines)</label>
-        <input type="number" id="priceDiv" placeholder="e.g. 5" oninput="calculate()">
-    </div>
-    <div class="input-group">
-        <label>Item Price (Exalts)</label>
-        <input type="number" id="priceEx" placeholder="e.g. 240" oninput="calculate()">
-    </div>
+    <label>Item Price (in Divines)</label>
+    <input type="number" id="priceDiv" placeholder="e.g. 5" oninput="calculate()">
 
-    <div id="result" class="result" style="display:none;"></div>
+    <label>Item Price (in Exalts)</label>
+    <input type="number" id="priceEx" placeholder="e.g. 240" oninput="calculate()">
+
+    <div id="result" class="result"></div>
 </div>
 
 <script>
+// Logic to fetch rates from poe.ninja using a CORS proxy
 async function fetchRates() {
     const status = document.getElementById('status');
-    status.innerText = "Fetching from poe.ninja...";
+    status.innerText = "CONNECTING...";
     
-    // We use a public CORS proxy to access the poe.ninja API
+    const league = "Vaal"; // Internal Ninja ID for 'Fate of the Vaal'
     const proxy = "https://corsproxy.io/?";
-    const url = encodeURIComponent("https://poe.ninja/api/data/currencyoverview?league=PoE2%20Standard&type=Currency");
+    const target = `https://poe.ninja/api/data/currencyoverview?league=${league}&type=Currency`;
 
     try {
-        const response = await fetch(proxy + url);
+        const response = await fetch(proxy + encodeURIComponent(target));
         const data = await response.json();
         
-        // Logic to find Divine and Exalt values relative to Chaos
-        const divineData = data.lines.find(i => i.currencyTypeName === 'Divine Orb');
-        const exaltData = data.lines.find(i => i.currencyTypeName === 'Exalted Orb');
+        // Ninja API uses chaosEquivalent for ratios
+        const div = data.lines.find(i => i.currencyTypeName === 'Divine Orb');
+        const ex = data.lines.find(i => i.currencyTypeName === 'Exalted Orb');
 
-        if (divineData && exaltData) {
-            const rate = (divineData.chaosEquivalent / exaltData.chaosEquivalent).toFixed(2);
+        if (div && ex) {
+            const rate = (div.chaosEquivalent / ex.chaosEquivalent).toFixed(2);
             document.getElementById('divExRate').value = rate;
-            status.innerText = `Auto-Updated: 1 Div = ${rate} Ex`;
+            status.innerText = `SYNCED: 1 DIV = ${rate} EX`;
             calculate();
+        } else {
+            status.innerText = "DATA NOT FOUND IN API";
         }
     } catch (e) {
-        status.innerText = "Error fetching rates. Enter manually.";
-        console.error(e);
+        status.innerText = "OFFLINE / SYNC ERROR";
     }
 }
 
@@ -79,24 +78,34 @@ function calculate() {
     const divEx = parseFloat(document.getElementById('divExRate').value);
     const pDiv = parseFloat(document.getElementById('priceDiv').value);
     const pEx = parseFloat(document.getElementById('priceEx').value);
+    const res = document.getElementById('result');
 
-    if (!divEx || !pDiv || !pEx) return;
+    if (!divEx || !pDiv || !pEx) {
+        res.style.display = 'none';
+        return;
+    }
 
-    const resultDiv = document.getElementById('result');
-    resultDiv.style.display = 'block';
-
-    const costInExIfConverted = pDiv * divEx;
+    res.style.display = 'block';
     
-    if (costInExIfConverted < pEx) {
-        const saved = (pEx - costInExIfConverted).toFixed(1);
-        resultDiv.className = 'result better';
-        resultDiv.innerHTML = `CONVERT TO EXALTS<br><small>Saves ~${saved} Exalts</small>`;
+    // The "middleman" cost: If I use my divines to buy exalts first
+    const costInExViaConversion = pDiv * divEx;
+    
+    if (costInExViaConversion < pEx) {
+        const diff = (pEx - costInExViaConversion).toFixed(1);
+        res.className = 'result better';
+        res.innerHTML = `CONVERT TO EXALTS<br><small>Converting saves you ~${diff} Exalts.</small>`;
+    } else if (costInExViaConversion > pEx) {
+        const diff = (costInExViaConversion - pEx).toFixed(1);
+        res.className = 'result worse';
+        res.innerHTML = `BUY WITH DIVINES DIRECTLY<br><small>Direct Divine price is ~${diff} Exalts cheaper.</small>`;
     } else {
-        const saved = (costInExIfConverted - pEx).toFixed(1);
-        resultDiv.className = 'result worse';
-        resultDiv.innerHTML = `BUY DIRECTLY (DIV)<br><small>Saves ~${saved} Exalts equivalent</small>`;
+        res.className = 'result';
+        res.innerHTML = `PRICES ARE EQUAL`;
     }
 }
+
+// Auto-fetch on load
+window.onload = fetchRates;
 </script>
 
 </body>
