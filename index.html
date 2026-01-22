@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vaal Arbitrage v1.5</title>
+    <title>Vaal Arbitrage v1.6</title>
     <style>
         :root { --gold: #e1ad5f; --bg: #0c0c0c; --card: #161616; --border: #2a2a2a; --green: #95d5b2; --red: #ff6b6b; --orange: #f4a261; --blue: #66ccff; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: #d1d1d1; padding: 10px; display: flex; flex-direction: column; align-items: center; }
@@ -37,17 +37,17 @@
         .tag-ex { background: #1a2e4a; color: var(--blue); }
         .tag-ch { background: #2d4a1a; color: var(--green); }
 
-        /* Icon Styles */
+        /* Icon Styles - Updated for poe.ninja stability */
         .icon-item { width: 24px; height: 24px; border: 1px solid #333; background: #000; border-radius: 3px; }
-        .icon-curr { width: 16px; height: 16px; object-fit: contain; }
+        .icon-curr { width: 18px; height: 18px; object-fit: contain; filter: drop-shadow(0 0 2px rgba(0,0,0,0.5)); }
 
-        .btn-sync { width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 6px; color: #000; font-weight: 800; cursor: pointer; margin-bottom: 10px; }
+        .btn-sync { width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 6px; color: #000; font-weight: 800; cursor: pointer; margin-bottom: 10px; text-transform: uppercase; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <button class="btn-sync" id="sync-btn" onclick="runArbitrage()">SYNC LIVE MARKET DATA</button>
+    <button class="btn-sync" id="sync-btn" onclick="runArbitrage()">Sync Live Market Data</button>
 
     <div class="card">
         <h2>Live Ratios</h2>
@@ -95,11 +95,11 @@ const itemMap = {
     "Scrap": "armourers-scrap" 
 };
 
-// CDN URLs
+// Stable Icon Paths via poe.ninja (These don't 404)
 const CURRENCY_ICONS = {
-    div: "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lNb2RWYWx1ZXMiLCJzY2FsZSI6MX1d/2986e220b3/CurrencyModValues.png",
-    ex: "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lBZGRNb2RUb1JhcmUiLCJzY2FsZSI6MX1d/ad7c366789/CurrencyAddModToRare.png",
-    ch: "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lSZXJvbGxSYXJlIiwic2NhbGUiOjF9/c0ca392a78/CurrencyRerollRare.png"
+    div: "https://poe.ninja/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lNb2RWYWx1ZXMiLCJzY2FsZSI6MX1d/2986e220b3/CurrencyModValues.png",
+    ex: "https://poe.ninja/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lBZGRNb2RUb1JhcmUiLCJzY2FsZSI6MX1d/ad7c366789/CurrencyAddModToRare.png",
+    ch: "https://poe.ninja/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lSZXJvbGxSYXJlIiwic2NhbGUiOjF9/c0ca392a78/CurrencyRerollRare.png"
 };
 
 const proxy = "https://corsproxy.io/?";
@@ -139,7 +139,6 @@ async function runArbitrage() {
         const d2c = 1 / chLine.primaryValue;
         const c2e = d2e / d2c; 
 
-        // Set Top Ratios with Icons
         document.getElementById('rate-div-ex').innerHTML = `<img src="${CURRENCY_ICONS.ex}" class="icon-curr">${smartRound(d2e)}`;
         document.getElementById('rate-div-ch').innerHTML = `<img src="${CURRENCY_ICONS.ch}" class="icon-curr">${smartRound(d2c)}`;
         document.getElementById('rate-ch-ex').innerHTML = `<img src="${CURRENCY_ICONS.ex}" class="icon-curr">${smartRound(c2e)}`;
@@ -151,6 +150,7 @@ async function runArbitrage() {
             const pDiv = (data.pairs.find(p => p.id === 'divine') || {rate:0}).rate;
             const pEx = (data.pairs.find(p => p.id === 'exalted') || {rate:0}).rate;
             const pCh = (data.pairs.find(p => p.id === 'chaos') || {rate:0}).rate;
+            // Item icon from ninja API
             const itemImg = data.item ? `https://poe.ninja${data.item.image}` : '';
 
             const nDiv = pDiv * d2e;
@@ -182,7 +182,7 @@ async function runArbitrage() {
             row.innerHTML = `
                 <td>
                     <div class="item-cell">
-                        <img src="${res.itemImg}" class="icon-item">
+                        <img src="${res.itemImg}" class="icon-item" onerror="this.style.display='none'">
                         <strong>${res.friendlyName}</strong>
                     </div>
                 </td>
@@ -206,7 +206,12 @@ async function runArbitrage() {
             tbody.appendChild(row);
         });
 
-    } catch (e) { console.error(e); } finally { btn.innerText = "SYNC LIVE MARKET DATA"; }
+    } catch (e) { 
+        console.error(e); 
+        btn.innerText = "Error Fetching Data";
+    } finally { 
+        btn.innerText = "Sync Live Market Data"; 
+    }
 }
 window.onload = runArbitrage;
 </script>
