@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vaal Arbitrage v1.4</title>
+    <title>Vaal Arbitrage v1.5</title>
     <style>
         :root { --gold: #e1ad5f; --bg: #0c0c0c; --card: #161616; --border: #2a2a2a; --green: #95d5b2; --red: #ff6b6b; --orange: #f4a261; --blue: #66ccff; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: #d1d1d1; padding: 10px; display: flex; flex-direction: column; align-items: center; }
@@ -14,16 +14,19 @@
         .rates-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
         .rate-box { background: #222; padding: 10px; border-radius: 6px; text-align: center; border: 1px solid #333; }
         .rate-box small { display: block; color: #888; font-size: 0.65rem; margin-bottom: 4px; }
-        .rate-box span { font-family: monospace; font-weight: bold; color: #fff; }
+        .rate-box span { font-family: monospace; font-weight: bold; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; }
 
         table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
         th { text-align: left; color: #777; padding: 10px 5px; border-bottom: 2px solid #333; text-transform: uppercase; font-size: 0.6rem; }
-        td { padding: 12px 5px; border-bottom: 1px solid #222; }
+        td { padding: 10px 5px; border-bottom: 1px solid #222; vertical-align: middle; }
+        
+        .item-cell { display: flex; align-items: center; gap: 8px; }
         .val-col { font-family: monospace; text-align: right; white-space: nowrap; }
+        .val-content { display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
         
         .group-direct { background: rgba(255,255,255,0.02); }
         .group-norm { background: rgba(225, 173, 95, 0.04); }
-        .bulk-label { color: var(--blue); font-size: 0.65rem; margin-right: 4px; }
+        .bulk-label { color: var(--blue); font-size: 0.65rem; margin-right: 2px; }
         
         .highlight { color: var(--green); font-weight: bold; }
         .loss-minor { font-size: 0.6rem; color: var(--orange); display: block; margin-top: 2px; opacity: 0.7; }
@@ -33,6 +36,11 @@
         .tag-div { background: #4a3a1a; color: var(--gold); }
         .tag-ex { background: #1a2e4a; color: var(--blue); }
         .tag-ch { background: #2d4a1a; color: var(--green); }
+
+        /* Icon Styles */
+        .icon-item { width: 24px; height: 24px; border: 1px solid #333; background: #000; border-radius: 3px; }
+        .icon-curr { width: 16px; height: 16px; object-fit: contain; }
+
         .btn-sync { width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 6px; color: #000; font-weight: 800; cursor: pointer; margin-bottom: 10px; }
     </style>
 </head>
@@ -44,9 +52,18 @@
     <div class="card">
         <h2>Live Ratios</h2>
         <div class="rates-grid">
-            <div class="rate-box"><small>1 DIV : EX</small><span id="rate-div-ex">---</span></div>
-            <div class="rate-box"><small>1 DIV : CH</small><span id="rate-div-ch">---</span></div>
-            <div class="rate-box"><small>1 CHAOS : EX</small><span id="rate-ch-ex">---</span></div>
+            <div class="rate-box">
+                <small>1 DIV : EX</small>
+                <span id="rate-div-ex">---</span>
+            </div>
+            <div class="rate-box">
+                <small>1 DIV : CH</small>
+                <span id="rate-div-ch">---</span>
+            </div>
+            <div class="rate-box">
+                <small>1 CHAOS : EX</small>
+                <span id="rate-ch-ex">---</span>
+            </div>
         </div>
     </div>
 
@@ -78,22 +95,31 @@ const itemMap = {
     "Scrap": "armourers-scrap" 
 };
 
+// CDN URLs
+const CURRENCY_ICONS = {
+    div: "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lNb2RWYWx1ZXMiLCJzY2FsZSI6MX1d/2986e220b3/CurrencyModValues.png",
+    ex: "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lBZGRNb2RUb1JhcmUiLCJzY2FsZSI6MX1d/ad7c366789/CurrencyAddModToRare.png",
+    ch: "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lSZXJvbGxSYXJlIiwic2NhbGUiOjF9/c0ca392a78/CurrencyRerollRare.png"
+};
+
 const proxy = "https://corsproxy.io/?";
 const baseDetailsUrl = "https://poe.ninja/poe2/api/economy/exchange/current/details?league=Fate+of+the+Vaal&type=Currency&id=";
 
 function smartRound(val) {
     if (!val || val === 0) return "---";
-    // Round to whole if 10 or greater, otherwise 2 decimals
     return val >= 10 
         ? Math.round(val).toLocaleString() 
         : val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function formatPrice(val) {
+function formatPrice(val, iconKey) {
     if (!val || val === 0) return "---";
-    return val < 1 
+    const iconHtml = iconKey ? `<img src="${CURRENCY_ICONS[iconKey]}" class="icon-curr">` : '';
+    const priceHtml = val < 1 
         ? `<span class="bulk-label">1:</span>${Math.round(1 / val).toLocaleString()}` 
         : smartRound(val);
+    
+    return `<div class="val-content">${iconHtml} ${priceHtml}</div>`;
 }
 
 async function runArbitrage() {
@@ -113,9 +139,10 @@ async function runArbitrage() {
         const d2c = 1 / chLine.primaryValue;
         const c2e = d2e / d2c; 
 
-        document.getElementById('rate-div-ex').innerText = smartRound(d2e);
-        document.getElementById('rate-div-ch').innerText = smartRound(d2c);
-        document.getElementById('rate-ch-ex').innerText = smartRound(c2e);
+        // Set Top Ratios with Icons
+        document.getElementById('rate-div-ex').innerHTML = `<img src="${CURRENCY_ICONS.ex}" class="icon-curr">${smartRound(d2e)}`;
+        document.getElementById('rate-div-ch').innerHTML = `<img src="${CURRENCY_ICONS.ch}" class="icon-curr">${smartRound(d2c)}`;
+        document.getElementById('rate-ch-ex').innerHTML = `<img src="${CURRENCY_ICONS.ex}" class="icon-curr">${smartRound(c2e)}`;
 
         const promises = Object.entries(itemMap).map(async ([friendlyName, id]) => {
             const res = await fetch(proxy + encodeURIComponent(baseDetailsUrl + id));
@@ -124,6 +151,7 @@ async function runArbitrage() {
             const pDiv = (data.pairs.find(p => p.id === 'divine') || {rate:0}).rate;
             const pEx = (data.pairs.find(p => p.id === 'exalted') || {rate:0}).rate;
             const pCh = (data.pairs.find(p => p.id === 'chaos') || {rate:0}).rate;
+            const itemImg = data.item ? `https://poe.ninja${data.item.image}` : '';
 
             const nDiv = pDiv * d2e;
             const nEx = pEx;
@@ -144,7 +172,7 @@ async function runArbitrage() {
                 return `<span class="${className}">-${Math.round(percent)}% loss</span>`;
             };
 
-            return { friendlyName, pDiv, pEx, pCh, nDiv, nEx, nCh, best, getLossHTML };
+            return { friendlyName, itemImg, pDiv, pEx, pCh, nDiv, nEx, nCh, best, getLossHTML };
         });
 
         const results = await Promise.all(promises);
@@ -152,18 +180,26 @@ async function runArbitrage() {
         results.forEach(res => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td><strong>${res.friendlyName}</strong></td>
-                <td class="val-col group-direct">${formatPrice(res.pDiv)}</td>
-                <td class="val-col group-direct">${formatPrice(res.pEx)}</td>
-                <td class="val-col group-direct">${formatPrice(res.pCh)}</td>
+                <td>
+                    <div class="item-cell">
+                        <img src="${res.itemImg}" class="icon-item">
+                        <strong>${res.friendlyName}</strong>
+                    </div>
+                </td>
+                <td class="val-col group-direct">${formatPrice(res.pDiv, 'div')}</td>
+                <td class="val-col group-direct">${formatPrice(res.pEx, 'ex')}</td>
+                <td class="val-col group-direct">${formatPrice(res.pCh, 'ch')}</td>
                 <td class="val-col group-norm ${res.best.name === 'DIV' ? 'highlight' : ''}">
-                    ${smartRound(res.nDiv)}${res.getLossHTML(res.nDiv)}
+                    ${formatPrice(res.nDiv, 'ex')}
+                    ${res.getLossHTML(res.nDiv)}
                 </td>
                 <td class="val-col group-norm ${res.best.name === 'EX' ? 'highlight' : ''}">
-                    ${smartRound(res.nEx)}${res.getLossHTML(res.nEx)}
+                    ${formatPrice(res.nEx, 'ex')}
+                    ${res.getLossHTML(res.nEx)}
                 </td>
                 <td class="val-col group-norm ${res.best.name === 'CH' ? 'highlight' : ''}">
-                    ${smartRound(res.nCh)}${res.getLossHTML(res.nCh)}
+                    ${formatPrice(res.nCh, 'ex')}
+                    ${res.getLossHTML(res.nCh)}
                 </td>
                 <td style="text-align:center"><span class="tag ${res.best.tag}">${res.best.name}</span></td>
             `;
