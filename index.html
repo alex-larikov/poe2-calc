@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vaal Arbitrage - Deep Data</title>
+    <title>Vaal Arbitrage v1.1</title>
     <style>
-        :root { --gold: #e1ad5f; --bg: #0c0c0c; --card: #161616; --border: #2a2a2a; --green: #95d5b2; --blue: #66ccff; }
+        :root { --gold: #e1ad5f; --bg: #0c0c0c; --card: #161616; --border: #2a2a2a; --green: #95d5b2; --red: #ff6b6b; --blue: #66ccff; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: #d1d1d1; padding: 10px; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 1000px; }
         .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
@@ -24,8 +24,9 @@
         .group-direct { background: rgba(255,255,255,0.02); }
         .group-norm { background: rgba(225, 173, 95, 0.04); }
         .bulk-label { color: var(--blue); font-size: 0.65rem; margin-right: 4px; }
+        
         .highlight { color: var(--green); font-weight: bold; }
-        .strike { text-decoration: line-through; opacity: 0.3; }
+        .loss-tag { font-size: 0.6rem; color: var(--red); display: block; margin-top: 2px; opacity: 0.8; }
         
         .tag { font-size: 0.6rem; padding: 2px 5px; border-radius: 3px; font-weight: bold; }
         .tag-div { background: #4a3a1a; color: #e1ad5f; }
@@ -37,19 +38,19 @@
 <body>
 
 <div class="container">
-    <button class="btn-sync" id="sync-btn" onclick="runArbitrage()">SYNC LIVE DATA (ALL SOURCES)</button>
+    <button class="btn-sync" id="sync-btn" onclick="runArbitrage()">SYNC LIVE MARKET DATA</button>
 
     <div class="card">
-        <h2>Global Benchmarks</h2>
+        <h2>Live Ratios</h2>
         <div class="rates-grid">
             <div class="rate-box"><small>1 DIV : EX</small><span id="rate-div-ex">---</span></div>
             <div class="rate-box"><small>1 DIV : CH</small><span id="rate-div-ch">---</span></div>
-            <div class="rate-box"><small>1 EX : CH</small><span id="rate-ex-ch">---</span></div>
+            <div class="rate-box"><small>1 CHAOS : EX</small><span id="rate-ch-ex">---</span></div>
         </div>
     </div>
 
     <div class="card">
-        <h2>Arbitrage Analysis</h2>
+        <h2>Optimal Purchase Analysis (Norm. to Exalts)</h2>
         <table>
             <thead>
                 <tr>
@@ -69,21 +70,21 @@
 </div>
 
 <script>
-// We map the common name to the specific details-id used in the details API
-const itemMap = {
-    "Perfect Exalted": "perfect-exalted-orb",
-    "Perfect Aug": "perfect-orb-of-augmentation",
-    "Scrap": "armourers-scrap"
-};
-
+const itemMap = { "Perfect Exalted": "perfect-exalted-orb", "Perfect Aug": "perfect-orb-of-augmentation", "Scrap": "armourers-scrap" };
 const proxy = "https://corsproxy.io/?";
 const baseDetailsUrl = "https://poe.ninja/poe2/api/economy/exchange/current/details?league=Fate+of+the+Vaal&type=Currency&id=";
+
+function smartRound(val) {
+    if (!val || val === 0) return "---";
+    // Round to whole if > 10, otherwise 2 decimals
+    return val > 10 ? Math.round(val).toLocaleString() : val.toFixed(2);
+}
 
 function formatPrice(val) {
     if (!val || val === 0) return "---";
     return val < 1 
         ? `<span class="bulk-label">1:</span>${Math.round(1 / val).toLocaleString()}` 
-        : val.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+        : smartRound(val);
 }
 
 async function runArbitrage() {
@@ -93,7 +94,6 @@ async function runArbitrage() {
     tbody.innerHTML = '';
 
     try {
-        // 1. First, get the general rates to establish our global bench (for normalization)
         const overviewRes = await fetch(proxy + encodeURIComponent("https://poe.ninja/poe2/api/economy/exchange/current/overview?league=Fate+of+the+Vaal&type=Currency"));
         const overviewData = await overviewRes.json();
         
@@ -102,31 +102,23 @@ async function runArbitrage() {
         
         const d2e = 1 / exLine.primaryValue;
         const d2c = 1 / chLine.primaryValue;
-        const e2c = d2c / d2e;
+        const c2e = d2e / d2c; // How many Ex per 1 Chaos
 
-        document.getElementById('rate-div-ex').innerText = d2e.toFixed(1);
-        document.getElementById('rate-div-ch').innerText = d2c.toFixed(0);
-        document.getElementById('rate-ex-ch').innerText = e2c.toFixed(1);
+        document.getElementById('rate-div-ex').innerText = smartRound(d2e);
+        document.getElementById('rate-div-ch').innerText = smartRound(d2c);
+        document.getElementById('rate-ch-ex').innerText = c2e.toFixed(3);
 
-        // 2. Parallel Fetch for each item's specific pairs
         const promises = Object.entries(itemMap).map(async ([friendlyName, id]) => {
             const res = await fetch(proxy + encodeURIComponent(baseDetailsUrl + id));
             const data = await res.json();
             
-            // Extract specific rates from the "pairs" array
-            const divPair = data.pairs.find(p => p.id === 'divine');
-            const exPair = data.pairs.find(p => p.id === 'exalted');
-            const chPair = data.pairs.find(p => p.id === 'chaos');
+            const pDiv = (data.pairs.find(p => p.id === 'divine') || {rate:0}).rate;
+            const pEx = (data.pairs.find(p => p.id === 'exalted') || {rate:0}).rate;
+            const pCh = (data.pairs.find(p => p.id === 'chaos') || {rate:0}).rate;
 
-            const pDiv = divPair ? divPair.rate : 0;
-            const pEx = exPair ? exPair.rate : 0;
-            const pCh = chPair ? chPair.rate : 0;
-
-            // Normalize everything to Exalts for comparison
-            // (Price in Div * D2E) vs (Price in Ex) vs (Price in Chaos / E2C)
             const nDiv = pDiv * d2e;
             const nEx = pEx;
-            const nCh = pCh / e2c;
+            const nCh = pCh * c2e; // Using Chaos -> Exalt multiplier
 
             const paths = [
                 { name: 'DIV', val: nDiv, tag: 'tag-div' },
@@ -136,7 +128,13 @@ async function runArbitrage() {
 
             const best = paths.reduce((prev, curr) => (prev.val < curr.val) ? prev : curr);
 
-            return { friendlyName, pDiv, pEx, pCh, nDiv, nEx, nCh, best };
+            const getLoss = (current) => {
+                if (current === 0 || best.val === 0 || current === best.val) return "";
+                const percent = ((current - best.val) / best.val) * 100;
+                return `<span class="loss-tag">-${percent.toFixed(0)}% loss</span>`;
+            };
+
+            return { friendlyName, pDiv, pEx, pCh, nDiv, nEx, nCh, best, getLoss };
         });
 
         const results = await Promise.all(promises);
@@ -148,20 +146,21 @@ async function runArbitrage() {
                 <td class="val-col group-direct">${formatPrice(res.pDiv)}</td>
                 <td class="val-col group-direct">${formatPrice(res.pEx)}</td>
                 <td class="val-col group-direct">${formatPrice(res.pCh)}</td>
-                <td class="val-col group-norm ${res.best.name === 'DIV' ? 'highlight' : 'strike'}">${res.nDiv.toFixed(3)}</td>
-                <td class="val-col group-norm ${res.best.name === 'EX' ? 'highlight' : 'strike'}">${res.nEx.toFixed(3)}</td>
-                <td class="val-col group-norm ${res.best.name === 'CH' ? 'highlight' : 'strike'}">${res.nCh.toFixed(3)}</td>
+                <td class="val-col group-norm ${res.best.name === 'DIV' ? 'highlight' : ''}">
+                    ${res.nDiv.toFixed(2)}${res.getLoss(res.nDiv)}
+                </td>
+                <td class="val-col group-norm ${res.best.name === 'EX' ? 'highlight' : ''}">
+                    ${res.nEx.toFixed(2)}${res.getLoss(res.nEx)}
+                </td>
+                <td class="val-col group-norm ${res.best.name === 'CH' ? 'highlight' : ''}">
+                    ${res.nCh.toFixed(2)}${res.getLoss(res.nCh)}
+                </td>
                 <td style="text-align:center"><span class="tag ${res.best.tag}">${res.best.name}</span></td>
             `;
             tbody.appendChild(row);
         });
 
-    } catch (e) {
-        console.error(e);
-        btn.innerText = "ERROR - TRY AGAIN";
-    } finally {
-        btn.innerText = "SYNC LIVE DATA (ALL SOURCES)";
-    }
+    } catch (e) { console.error(e); } finally { btn.innerText = "SYNC LIVE MARKET DATA"; }
 }
 window.onload = runArbitrage;
 </script>
