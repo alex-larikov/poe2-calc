@@ -3,43 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vaal Arbitrage v1.2</title>
+    <title>Vaal Arbitrage v1.4</title>
     <style>
-        :root { --gold: #e1ad5f; --bg: #0c0c0c; --card: #161616; --border: #2a2a2a; --green: #95d5b2; --red: #ff6b6b; --orange: #f4a261; --blue: #66ccff; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); color: #d1d1d1; padding: 10px; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 1000px; }
-        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
-        h2 { color: var(--gold); text-align: center; margin-top: 0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
-        
-        .rates-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
-        .rate-box { background: #222; padding: 10px; border-radius: 6px; text-align: center; border: 1px solid #333; }
-        .rate-box small { display: block; color: #888; font-size: 0.65rem; margin-bottom: 4px; }
-        .rate-box span { font-family: monospace; font-weight: bold; color: #fff; }
+        :root { 
+            --gold: #e1ad5f; 
+            --bg: #0c0c0c; 
+            --card: #161616; 
+            --border: #2a2a2a; 
+            --green: #95d5b2; 
+            --red: #ff6b6b; 
+            --orange: #f4a261; 
+            --blue: #66ccff; 
+        }
 
-        table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
-        th { text-align: left; color: #777; padding: 10px 5px; border-bottom: 2px solid #333; text-transform: uppercase; font-size: 0.6rem; }
-        td { padding: 12px 5px; border-bottom: 1px solid #222; }
-        .val-col { font-family: monospace; text-align: right; white-space: nowrap; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background: var(--bg); 
+            color: #d1d1d1; 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            margin: 0;
+        }
+
+        .container { width: 100%; max-width: 1000px; }
+
+        .card { 
+            background: var(--card); 
+            padding: 24px; 
+            border-radius: 12px; 
+            border: 1px solid var(--border); 
+            margin-bottom: 20px; 
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5); 
+            overflow-x: auto;
+        }
+
+        h2 { 
+            color: var(--gold); 
+            text-align: center; 
+            margin-top: 0; 
+            font-size: 0.9rem; 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            margin-bottom: 20px;
+        }
+        
+        /* Top Ratios Grid */
+        .rates-grid { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 15px; 
+            margin-bottom: 5px; 
+        }
+
+        .rate-box { 
+            background: #222; 
+            padding: 15px; 
+            border-radius: 8px; 
+            text-align: center; 
+            border: 1px solid #333; 
+        }
+
+        .rate-box small { 
+            display: block; 
+            color: #888; 
+            font-size: 0.65rem; 
+            margin-bottom: 6px; 
+            font-weight: 600;
+        }
+
+        .rate-box span { 
+            font-family: "SF Mono", "Fira Code", monospace; 
+            font-weight: bold; 
+            color: #fff; 
+            font-size: 1.2rem;
+        }
+
+        /* Table Styling */
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 800px; }
+        
+        th { 
+            text-align: left; 
+            color: #777; 
+            padding: 12px 8px; 
+            border-bottom: 2px solid #333; 
+            text-transform: uppercase; 
+            font-size: 0.65rem; 
+            letter-spacing: 0.5px;
+        }
+
+        td { padding: 14px 8px; border-bottom: 1px solid #222; }
+
+        .val-col { font-family: "SF Mono", monospace; text-align: right; white-space: nowrap; }
         
         .group-direct { background: rgba(255,255,255,0.02); }
         .group-norm { background: rgba(225, 173, 95, 0.04); }
-        .bulk-label { color: var(--blue); font-size: 0.65rem; margin-right: 4px; }
         
+        .bulk-label { color: var(--blue); font-size: 0.7rem; margin-right: 4px; font-weight: bold; }
         .highlight { color: var(--green); font-weight: bold; }
-        .loss-minor { font-size: 0.6rem; color: var(--orange); display: block; margin-top: 2px; opacity: 0.7; }
-        .loss-major { font-size: 0.6rem; color: var(--red); display: block; margin-top: 2px; font-weight: bold; }
         
-        .tag { font-size: 0.6rem; padding: 2px 5px; border-radius: 3px; font-weight: bold; }
+        /* Loss Indicators */
+        .loss-minor { font-size: 0.65rem; color: var(--orange); display: block; margin-top: 4px; opacity: 0.8; }
+        .loss-major { font-size: 0.65rem; color: var(--red); display: block; margin-top: 4px; font-weight: bold; }
+        
+        /* Tags */
+        .tag { font-size: 0.65rem; padding: 3px 8px; border-radius: 4px; font-weight: bold; }
         .tag-div { background: #4a3a1a; color: var(--gold); }
         .tag-ex { background: #1a2e4a; color: var(--blue); }
         .tag-ch { background: #2d4a1a; color: var(--green); }
-        .btn-sync { width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 6px; color: #000; font-weight: 800; cursor: pointer; margin-bottom: 10px; }
+
+        .btn-sync { 
+            width: 100%; 
+            padding: 16px; 
+            background: var(--gold); 
+            border: none; 
+            border-radius: 8px; 
+            color: #000; 
+            font-weight: 800; 
+            cursor: pointer; 
+            margin-bottom: 20px; 
+            transition: transform 0.1s, background 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-sync:hover { background: #f3c37d; }
+        .btn-sync:active { transform: scale(0.99); }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <button class="btn-sync" id="sync-btn" onclick="runArbitrage()">SYNC LIVE MARKET DATA</button>
+    <button class="btn-sync" id="sync-btn" onclick="runArbitrage()">Sync Live Market Data</button>
 
     <div class="card">
         <h2>Live Ratios</h2>
@@ -65,12 +161,14 @@
                     <th style="text-align:center">Best</th>
                 </tr>
             </thead>
-            <tbody id="table-body"></tbody>
+            <tbody id="table-body">
+                </tbody>
         </table>
     </div>
 </div>
 
 <script>
+// Target Items Configuration
 const itemMap = { 
     "Perfect Exalted": "perfect-exalted-orb", 
     "Perfect Aug": "perfect-orb-of-augmentation", 
@@ -81,12 +179,22 @@ const itemMap = {
 const proxy = "https://corsproxy.io/?";
 const baseDetailsUrl = "https://poe.ninja/poe2/api/economy/exchange/current/details?league=Fate+of+the+Vaal&type=Currency&id=";
 
-// Applies rounding: Whole if > 10, else 2 decimals
+/**
+ * Global Rounding Rule:
+ * - If value >= 10: Round to nearest whole number.
+ * - If value < 10: Keep exactly 2 decimal places.
+ */
 function smartRound(val) {
     if (!val || val === 0) return "---";
-    return val >= 10 ? Math.round(val).toLocaleString() : val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return val >= 10 
+        ? Math.round(val).toLocaleString() 
+        : val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+/**
+ * Handles "1:X" bulk formatting for items cheaper than 1 unit, 
+ * otherwise applies smartRound.
+ */
 function formatPrice(val) {
     if (!val || val === 0) return "---";
     return val < 1 
@@ -96,11 +204,12 @@ function formatPrice(val) {
 
 async function runArbitrage() {
     const btn = document.getElementById('sync-btn');
-    btn.innerText = "REFRESHING...";
+    btn.innerText = "REFRESHING DATA...";
     const tbody = document.getElementById('table-body');
     tbody.innerHTML = '';
 
     try {
+        // 1. Fetch Global Overview for Benchmarking
         const overviewRes = await fetch(proxy + encodeURIComponent("https://poe.ninja/poe2/api/economy/exchange/current/overview?league=Fate+of+the+Vaal&type=Currency"));
         const overviewData = await overviewRes.json();
         
@@ -111,11 +220,12 @@ async function runArbitrage() {
         const d2c = 1 / chLine.primaryValue;
         const c2e = d2e / d2c; 
 
+        // Update top UI boxes
         document.getElementById('rate-div-ex').innerText = smartRound(d2e);
         document.getElementById('rate-div-ch').innerText = smartRound(d2c);
-        // Cross-rate for small currency stays precise
-        document.getElementById('rate-ch-ex').innerText = c2e.toFixed(3);
+        document.getElementById('rate-ch-ex').innerText = smartRound(c2e);
 
+        // 2. Fetch specific pairs for each item in parallel
         const promises = Object.entries(itemMap).map(async ([friendlyName, id]) => {
             const res = await fetch(proxy + encodeURIComponent(baseDetailsUrl + id));
             const data = await res.json();
@@ -124,6 +234,7 @@ async function runArbitrage() {
             const pEx = (data.pairs.find(p => p.id === 'exalted') || {rate:0}).rate;
             const pCh = (data.pairs.find(p => p.id === 'chaos') || {rate:0}).rate;
 
+            // Normalize values to Exalts
             const nDiv = pDiv * d2e;
             const nEx = pEx;
             const nCh = pCh * c2e;
@@ -134,6 +245,7 @@ async function runArbitrage() {
                 { name: 'CH', val: nCh, tag: 'tag-ch' }
             ].filter(p => p.val > 0);
 
+            // Determine best (lowest cost)
             const best = paths.length > 0 ? paths.reduce((prev, curr) => (prev.val < curr.val) ? prev : curr) : {val:0, name:''};
 
             const getLossHTML = (current) => {
@@ -148,6 +260,7 @@ async function runArbitrage() {
 
         const results = await Promise.all(promises);
 
+        // 3. Render Table Rows
         results.forEach(res => {
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -169,9 +282,17 @@ async function runArbitrage() {
             tbody.appendChild(row);
         });
 
-    } catch (e) { console.error(e); } finally { btn.innerText = "SYNC LIVE MARKET DATA"; }
+    } catch (e) { 
+        console.error(e); 
+        btn.innerText = "Error Fetching Data";
+    } finally { 
+        btn.innerText = "Sync Live Market Data"; 
+    }
 }
+
+// Initial Load
 window.onload = runArbitrage;
 </script>
+
 </body>
 </html>
