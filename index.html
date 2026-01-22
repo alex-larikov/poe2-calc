@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vaal Arbitrage v1.1</title>
+    <title>Vaal Arbitrage v1.2</title>
     <style>
-        :root { --gold: #e1ad5f; --bg: #0c0c0c; --card: #161616; --border: #2a2a2a; --green: #95d5b2; --red: #ff6b6b; --blue: #66ccff; }
+        :root { --gold: #e1ad5f; --bg: #0c0c0c; --card: #161616; --border: #2a2a2a; --green: #95d5b2; --red: #ff6b6b; --orange: #f4a261; --blue: #66ccff; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: #d1d1d1; padding: 10px; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 1000px; }
         .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
@@ -26,12 +26,13 @@
         .bulk-label { color: var(--blue); font-size: 0.65rem; margin-right: 4px; }
         
         .highlight { color: var(--green); font-weight: bold; }
-        .loss-tag { font-size: 0.6rem; color: var(--red); display: block; margin-top: 2px; opacity: 0.8; }
+        .loss-minor { font-size: 0.6rem; color: var(--orange); display: block; margin-top: 2px; opacity: 0.7; }
+        .loss-major { font-size: 0.6rem; color: var(--red); display: block; margin-top: 2px; font-weight: bold; }
         
         .tag { font-size: 0.6rem; padding: 2px 5px; border-radius: 3px; font-weight: bold; }
-        .tag-div { background: #4a3a1a; color: #e1ad5f; }
-        .tag-ex { background: #1a2e4a; color: #66ccff; }
-        .tag-ch { background: #2d4a1a; color: #95d5b2; }
+        .tag-div { background: #4a3a1a; color: var(--gold); }
+        .tag-ex { background: #1a2e4a; color: var(--blue); }
+        .tag-ch { background: #2d4a1a; color: var(--green); }
         .btn-sync { width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 6px; color: #000; font-weight: 800; cursor: pointer; margin-bottom: 10px; }
     </style>
 </head>
@@ -70,14 +71,20 @@
 </div>
 
 <script>
-const itemMap = { "Perfect Exalted": "perfect-exalted-orb", "Perfect Aug": "perfect-orb-of-augmentation", "Scrap": "armourers-scrap" };
+const itemMap = { 
+    "Perfect Exalted": "perfect-exalted-orb", 
+    "Perfect Aug": "perfect-orb-of-augmentation", 
+    "Annul": "orb-of-annulment",
+    "Scrap": "armourers-scrap" 
+};
+
 const proxy = "https://corsproxy.io/?";
 const baseDetailsUrl = "https://poe.ninja/poe2/api/economy/exchange/current/details?league=Fate+of+the+Vaal&type=Currency&id=";
 
+// Applies rounding: Whole if > 10, else 2 decimals
 function smartRound(val) {
     if (!val || val === 0) return "---";
-    // Round to whole if > 10, otherwise 2 decimals
-    return val > 10 ? Math.round(val).toLocaleString() : val.toFixed(2);
+    return val >= 10 ? Math.round(val).toLocaleString() : val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatPrice(val) {
@@ -89,7 +96,7 @@ function formatPrice(val) {
 
 async function runArbitrage() {
     const btn = document.getElementById('sync-btn');
-    btn.innerText = "FETCHING DATA...";
+    btn.innerText = "REFRESHING...";
     const tbody = document.getElementById('table-body');
     tbody.innerHTML = '';
 
@@ -102,10 +109,11 @@ async function runArbitrage() {
         
         const d2e = 1 / exLine.primaryValue;
         const d2c = 1 / chLine.primaryValue;
-        const c2e = d2e / d2c; // How many Ex per 1 Chaos
+        const c2e = d2e / d2c; 
 
         document.getElementById('rate-div-ex').innerText = smartRound(d2e);
         document.getElementById('rate-div-ch').innerText = smartRound(d2c);
+        // Cross-rate for small currency stays precise
         document.getElementById('rate-ch-ex').innerText = c2e.toFixed(3);
 
         const promises = Object.entries(itemMap).map(async ([friendlyName, id]) => {
@@ -118,7 +126,7 @@ async function runArbitrage() {
 
             const nDiv = pDiv * d2e;
             const nEx = pEx;
-            const nCh = pCh * c2e; // Using Chaos -> Exalt multiplier
+            const nCh = pCh * c2e;
 
             const paths = [
                 { name: 'DIV', val: nDiv, tag: 'tag-div' },
@@ -126,15 +134,16 @@ async function runArbitrage() {
                 { name: 'CH', val: nCh, tag: 'tag-ch' }
             ].filter(p => p.val > 0);
 
-            const best = paths.reduce((prev, curr) => (prev.val < curr.val) ? prev : curr);
+            const best = paths.length > 0 ? paths.reduce((prev, curr) => (prev.val < curr.val) ? prev : curr) : {val:0, name:''};
 
-            const getLoss = (current) => {
+            const getLossHTML = (current) => {
                 if (current === 0 || best.val === 0 || current === best.val) return "";
                 const percent = ((current - best.val) / best.val) * 100;
-                return `<span class="loss-tag">-${percent.toFixed(0)}% loss</span>`;
+                const className = percent >= 10 ? 'loss-major' : 'loss-minor';
+                return `<span class="${className}">-${Math.round(percent)}% loss</span>`;
             };
 
-            return { friendlyName, pDiv, pEx, pCh, nDiv, nEx, nCh, best, getLoss };
+            return { friendlyName, pDiv, pEx, pCh, nDiv, nEx, nCh, best, getLossHTML };
         });
 
         const results = await Promise.all(promises);
@@ -147,13 +156,13 @@ async function runArbitrage() {
                 <td class="val-col group-direct">${formatPrice(res.pEx)}</td>
                 <td class="val-col group-direct">${formatPrice(res.pCh)}</td>
                 <td class="val-col group-norm ${res.best.name === 'DIV' ? 'highlight' : ''}">
-                    ${res.nDiv.toFixed(2)}${res.getLoss(res.nDiv)}
+                    ${smartRound(res.nDiv)}${res.getLossHTML(res.nDiv)}
                 </td>
                 <td class="val-col group-norm ${res.best.name === 'EX' ? 'highlight' : ''}">
-                    ${res.nEx.toFixed(2)}${res.getLoss(res.nEx)}
+                    ${smartRound(res.nEx)}${res.getLossHTML(res.nEx)}
                 </td>
                 <td class="val-col group-norm ${res.best.name === 'CH' ? 'highlight' : ''}">
-                    ${res.nCh.toFixed(2)}${res.getLoss(res.nCh)}
+                    ${smartRound(res.nCh)}${res.getLossHTML(res.nCh)}
                 </td>
                 <td style="text-align:center"><span class="tag ${res.best.tag}">${res.best.name}</span></td>
             `;
