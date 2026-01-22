@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vaal Arbitrage v1.9</title>
+    <title>Vaal Arbitrage v2.0</title>
     <style>
         :root { --gold: #e1ad5f; --bg: #0c0c0c; --card: #161616; --border: #2a2a2a; --green: #95d5b2; --red: #ff6b6b; --orange: #f4a261; --blue: #66ccff; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: #d1d1d1; padding: 10px; display: flex; flex-direction: column; align-items: center; }
@@ -37,7 +37,8 @@
         .tag-ex { background: #1a2e4a; color: var(--blue); }
         .tag-ch { background: #2d4a1a; color: var(--green); }
 
-        .icon-item { width: 24px; height: 24px; border: 1px solid #333; background: #000; border-radius: 3px; }
+        /* Updated Icon Styling - Removed black boxes */
+        .icon-item { width: 28px; height: 28px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
         .icon-curr { width: 18px; height: 18px; object-fit: contain; }
 
         .btn-sync { width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 6px; color: #000; font-weight: 800; cursor: pointer; margin-bottom: 10px; text-transform: uppercase; }
@@ -81,7 +82,6 @@
 const proxy = "https://corsproxy.io/?";
 const CDN_BASE = "https://web.poecdn.com";
 
-// Using EXACT base64 strings including the realm:poe2 parameter
 const CURRENCY_ICONS = {
     div: CDN_BASE + "/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lNb2RWYWx1ZXMiLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/2986e220b3/CurrencyModValues.png",
     ex: CDN_BASE + "/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lBZGRNb2RUb1JhcmUiLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/ad7c366789/CurrencyAddModToRare.png",
@@ -135,9 +135,6 @@ async function runArbitrage() {
             const pDiv = (data.pairs.find(p => p.id === 'divine') || {rate:0}).rate;
             const pEx = (data.pairs.find(p => p.id === 'exalted') || {rate:0}).rate;
             const pCh = (data.pairs.find(p => p.id === 'chaos') || {rate:0}).rate;
-            
-            // Generate item image URL using CDN_BASE and appending realm:poe2 to the item's encoded string if possible
-            // Most ninja-provided paths work as-is if appended to the CDN
             const itemImg = data.item ? CDN_BASE + data.item.image : '';
 
             const nDiv = pDiv * d2e;
