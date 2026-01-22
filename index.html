@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vaal Arbitrage v1.6</title>
+    <title>Vaal Arbitrage v1.8</title>
     <style>
         :root { --gold: #e1ad5f; --bg: #0c0c0c; --card: #161616; --border: #2a2a2a; --green: #95d5b2; --red: #ff6b6b; --orange: #f4a261; --blue: #66ccff; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: #d1d1d1; padding: 10px; display: flex; flex-direction: column; align-items: center; }
@@ -37,9 +37,8 @@
         .tag-ex { background: #1a2e4a; color: var(--blue); }
         .tag-ch { background: #2d4a1a; color: var(--green); }
 
-        /* Icon Styles - Updated for poe.ninja stability */
         .icon-item { width: 24px; height: 24px; border: 1px solid #333; background: #000; border-radius: 3px; }
-        .icon-curr { width: 18px; height: 18px; object-fit: contain; filter: drop-shadow(0 0 2px rgba(0,0,0,0.5)); }
+        .icon-curr { width: 18px; height: 18px; object-fit: contain; }
 
         .btn-sync { width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 6px; color: #000; font-weight: 800; cursor: pointer; margin-bottom: 10px; text-transform: uppercase; }
     </style>
@@ -52,18 +51,9 @@
     <div class="card">
         <h2>Live Ratios</h2>
         <div class="rates-grid">
-            <div class="rate-box">
-                <small>1 DIV : EX</small>
-                <span id="rate-div-ex">---</span>
-            </div>
-            <div class="rate-box">
-                <small>1 DIV : CH</small>
-                <span id="rate-div-ch">---</span>
-            </div>
-            <div class="rate-box">
-                <small>1 CHAOS : EX</small>
-                <span id="rate-ch-ex">---</span>
-            </div>
+            <div class="rate-box"><small>1 DIV : EX</small><span id="rate-div-ex">---</span></div>
+            <div class="rate-box"><small>1 DIV : CH</small><span id="rate-div-ch">---</span></div>
+            <div class="rate-box"><small>1 CHAOS : EX</small><span id="rate-ch-ex">---</span></div>
         </div>
     </div>
 
@@ -88,6 +78,15 @@
 </div>
 
 <script>
+const proxy = "https://corsproxy.io/?";
+const CDN_BASE = "https://web.poecdn.com";
+
+const CURRENCY_ICONS = {
+    div: CDN_BASE + "/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lNb2RWYWx1ZXMiLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/2986e220b3/CurrencyModValues.png",
+    ex: CDN_BASE + "/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lBZGRNb2RUb1JhcmUiLCJzY2FsZSI6MSwicmVhbG0iOiJwb2UyIn1d/ad7c366789/CurrencyAddModToRare.png",
+    ch: CDN_BASE + "/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lSZXJvbGxSYXJlIiwic2NhbGUiOjEsInJlYWxtIjoicG9lMiJ9XQ/c0ca392a78/CurrencyRerollRare.png"
+};
+
 const itemMap = { 
     "Perfect Exalted": "perfect-exalted-orb", 
     "Perfect Aug": "perfect-orb-of-augmentation", 
@@ -95,30 +94,15 @@ const itemMap = {
     "Scrap": "armourers-scrap" 
 };
 
-// Stable Icon Paths via poe.ninja (These don't 404)
-const CURRENCY_ICONS = {
-    div: "https://poe.ninja/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lNb2RWYWx1ZXMiLCJzY2FsZSI6MX1d/2986e220b3/CurrencyModValues.png",
-    ex: "https://poe.ninja/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lBZGRNb2RUb1JhcmUiLCJzY2FsZSI6MX1d/ad7c366789/CurrencyAddModToRare.png",
-    ch: "https://poe.ninja/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQ3VycmVuY3kvQ3VycmVuY3lSZXJvbGxSYXJlIiwic2NhbGUiOjF9/c0ca392a78/CurrencyRerollRare.png"
-};
-
-const proxy = "https://corsproxy.io/?";
-const baseDetailsUrl = "https://poe.ninja/poe2/api/economy/exchange/current/details?league=Fate+of+the+Vaal&type=Currency&id=";
-
 function smartRound(val) {
     if (!val || val === 0) return "---";
-    return val >= 10 
-        ? Math.round(val).toLocaleString() 
-        : val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return val >= 10 ? Math.round(val).toLocaleString() : val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatPrice(val, iconKey) {
     if (!val || val === 0) return "---";
     const iconHtml = iconKey ? `<img src="${CURRENCY_ICONS[iconKey]}" class="icon-curr">` : '';
-    const priceHtml = val < 1 
-        ? `<span class="bulk-label">1:</span>${Math.round(1 / val).toLocaleString()}` 
-        : smartRound(val);
-    
+    const priceHtml = val < 1 ? `<span class="bulk-label">1:</span>${Math.round(1 / val).toLocaleString()}` : smartRound(val);
     return `<div class="val-content">${iconHtml} ${priceHtml}</div>`;
 }
 
@@ -144,14 +128,13 @@ async function runArbitrage() {
         document.getElementById('rate-ch-ex').innerHTML = `<img src="${CURRENCY_ICONS.ex}" class="icon-curr">${smartRound(c2e)}`;
 
         const promises = Object.entries(itemMap).map(async ([friendlyName, id]) => {
-            const res = await fetch(proxy + encodeURIComponent(baseDetailsUrl + id));
+            const res = await fetch(proxy + encodeURIComponent(`https://poe.ninja/poe2/api/economy/exchange/current/details?league=Fate+of+the+Vaal&type=Currency&id=${id}`));
             const data = await res.json();
             
             const pDiv = (data.pairs.find(p => p.id === 'divine') || {rate:0}).rate;
             const pEx = (data.pairs.find(p => p.id === 'exalted') || {rate:0}).rate;
             const pCh = (data.pairs.find(p => p.id === 'chaos') || {rate:0}).rate;
-            // Item icon from ninja API
-            const itemImg = data.item ? `https://poe.ninja${data.item.image}` : '';
+            const itemImg = data.item ? CDN_BASE + data.item.image : '';
 
             const nDiv = pDiv * d2e;
             const nEx = pEx;
@@ -180,12 +163,7 @@ async function runArbitrage() {
         results.forEach(res => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>
-                    <div class="item-cell">
-                        <img src="${res.itemImg}" class="icon-item" onerror="this.style.display='none'">
-                        <strong>${res.friendlyName}</strong>
-                    </div>
-                </td>
+                <td><div class="item-cell"><img src="${res.itemImg}" class="icon-item"><strong>${res.friendlyName}</strong></div></td>
                 <td class="val-col group-direct">${formatPrice(res.pDiv, 'div')}</td>
                 <td class="val-col group-direct">${formatPrice(res.pEx, 'ex')}</td>
                 <td class="val-col group-direct">${formatPrice(res.pCh, 'ch')}</td>
@@ -206,12 +184,7 @@ async function runArbitrage() {
             tbody.appendChild(row);
         });
 
-    } catch (e) { 
-        console.error(e); 
-        btn.innerText = "Error Fetching Data";
-    } finally { 
-        btn.innerText = "Sync Live Market Data"; 
-    }
+    } catch (e) { console.error(e); } finally { btn.innerText = "Sync Live Market Data"; }
 }
 window.onload = runArbitrage;
 </script>
