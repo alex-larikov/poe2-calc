@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vaal Arbitrage v2.0</title>
+    <title>Vaal Arbitrage v2.1</title>
     <style>
         :root { --gold: #e1ad5f; --bg: #0c0c0c; --card: #161616; --border: #2a2a2a; --green: #95d5b2; --red: #ff6b6b; --orange: #f4a261; --blue: #66ccff; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); color: #d1d1d1; padding: 10px; display: flex; flex-direction: column; align-items: center; }
@@ -32,14 +32,15 @@
         .loss-minor { font-size: 0.6rem; color: var(--orange); display: block; margin-top: 2px; opacity: 0.7; }
         .loss-major { font-size: 0.6rem; color: var(--red); display: block; margin-top: 2px; font-weight: bold; }
         
-        .tag { font-size: 0.6rem; padding: 2px 5px; border-radius: 3px; font-weight: bold; }
-        .tag-div { background: #4a3a1a; color: var(--gold); }
-        .tag-ex { background: #1a2e4a; color: var(--blue); }
-        .tag-ch { background: #2d4a1a; color: var(--green); }
+        /* Updated Tag Style for Icons */
+        .tag { display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; border-radius: 4px; min-width: 32px; }
+        .tag-div { background: #4a3a1a; border: 1px solid var(--gold); }
+        .tag-ex { background: #1a2e4a; border: 1px solid var(--blue); }
+        .tag-ch { background: #2d4a1a; border: 1px solid var(--green); }
 
-        /* Updated Icon Styling - Removed black boxes */
         .icon-item { width: 28px; height: 28px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
         .icon-curr { width: 18px; height: 18px; object-fit: contain; }
+        .icon-tag { width: 16px; height: 16px; object-fit: contain; }
 
         .btn-sync { width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 6px; color: #000; font-weight: 800; cursor: pointer; margin-bottom: 10px; text-transform: uppercase; }
     </style>
@@ -141,10 +142,11 @@ async function runArbitrage() {
             const nEx = pEx;
             const nCh = pCh * c2e;
 
+            // Updated path mapping to include iconKey
             const paths = [
-                { name: 'DIV', val: nDiv, tag: 'tag-div' },
-                { name: 'EX', val: nEx, tag: 'tag-ex' },
-                { name: 'CH', val: nCh, tag: 'tag-ch' }
+                { name: 'DIV', val: nDiv, tag: 'tag-div', icon: 'div' },
+                { name: 'EX', val: nEx, tag: 'tag-ex', icon: 'ex' },
+                { name: 'CH', val: nCh, tag: 'tag-ch', icon: 'ch' }
             ].filter(p => p.val > 0);
 
             const best = paths.length > 0 ? paths.reduce((prev, curr) => (prev.val < curr.val) ? prev : curr) : {val:0, name:''};
@@ -180,7 +182,11 @@ async function runArbitrage() {
                     ${formatPrice(res.nCh, 'ex')}
                     ${res.getLossHTML(res.nCh)}
                 </td>
-                <td style="text-align:center"><span class="tag ${res.best.tag}">${res.best.name}</span></td>
+                <td style="text-align:center">
+                    <span class="tag ${res.best.tag}">
+                        <img src="${CURRENCY_ICONS[res.best.icon]}" class="icon-tag">
+                    </span>
+                </td>
             `;
             tbody.appendChild(row);
         });
